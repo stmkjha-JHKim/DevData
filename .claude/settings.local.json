@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(Get-Process chrome -ErrorAction SilentlyContinue)",
+      "PowerShell(Stop-Process -Force -ErrorAction SilentlyContinue)",
+      "PowerShell(\\(Invoke-WebRequest -Uri \"http://127.0.0.1:3925/__debug/connect-count\" -UseBasicParsing\\).Content)",
+      "PowerShell(Get-Process OraPulse -ErrorAction SilentlyContinue)",
+      "PowerShell(Get-Process msedge -ErrorAction SilentlyContinue)"
+    ]
+  }
+}

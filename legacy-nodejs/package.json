@@ -1,0 +1,18 @@
+{
+  "name": "orapulse",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Oracle DB monitoring web app. Run it locally (npm install && npm start) and open http://127.0.0.1:3000 in your browser -- each user runs their own instance against their own database credentials, same as a normal desktop DB client. No central server or account system.",
+  "main": "main.js",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "node main.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "express-session": "^1.18.0",
+    "oracledb": "^6.5.1"
+  }
+}

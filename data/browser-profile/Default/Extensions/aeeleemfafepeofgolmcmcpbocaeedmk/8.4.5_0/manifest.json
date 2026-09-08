@@ -1,0 +1,24 @@
+{
+   "background": {
+      "service_worker": "background.js",
+      "type": "module"
+   },
+   "content_security_policy": {
+      "extension_page": "script-src 'self'  https://*.facebook.com  https://*.google.com  https://ssl.google-analytics.com https://*.wips.com https://*.facebook.net https://*.twitter.com https://*.doubleclick.net; object-src 'self'"
+   },
+   "description": "",
+   "host_permissions": [ "http://*/", "https://*/", "\u003Call_urls>" ],
+   "icons": {
+      "128": "icon.png"
+   },
+   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAoceOT8Vzii0/hgHnL+OmxWdAonhFG6RE3itJd6yo3sT3w8OIrN23Dn050DMWn8Kjxiw2Rp8109PenpwKa3SJzThvsHU6dtejDzLqv2DWlQQ3ObrZ+RADO5eWTa+Snsv438yvgJGyfyaL5XBNOiDSkj0Udxfqw8xW6oB0UFuf9N5shGcoz6V/5CckTQZS82w5cpPvLMEyO8i/sbURUA1b+kwu00CoNM+fgT+ZmymeLBvOaBJESBEFWv6dExkOzLHs4F7hfZzyw9w3yp/44k5Yn3kwnmvN7F0mnzJiMHnWbdpw4IJs3NajrtFs8w/U0QWgBz2HhdNlMP4EbKvqKFna+QIDAQAB",
+   "manifest_version": 3,
+   "name": "GRADIUS DLP MV3",
+   "permissions": [ "nativeMessaging", "tabs", "management", "webRequest", "webRequestBlocking", "webNavigation", "unlimitedStorage" ],
+   "update_url": "https://clients2.google.com/service/update2/crx",
+   "version": "8.4.5",
+   "web_accessible_resources": [ {
+      "matches": [ "*://*/*" ],
+      "resources": [ "blocked.html" ]
+   } ]
+}
