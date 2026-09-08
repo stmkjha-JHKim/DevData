@@ -56,7 +56,13 @@ async def ops_usage(session: Session = Depends(get_session)):
     }
 
     # Top 5 by elapsed_time (cumulative since the cursor entered the shared
-    # pool, not a single-execution time).
+    # pool, not a single-execution time). All three Top SQL rankings below
+    # are restricted to real user schemas -- excluding NULL parsing_schema_name
+    # (recursive/internal SQL) and any schema DBA_USERS marks
+    # ORACLE_MAINTAINED = 'Y' (SYS, SYSTEM, and the other Oracle-installed
+    # accounts, a 12c+ column consistent with this app's 12.1+ baseline) --
+    # so these rankings reflect application workload, not the database's own
+    # internal housekeeping SQL.
     try:
         cursor = connection.cursor()
         await cursor.execute(
@@ -68,8 +74,14 @@ async def ops_usage(session: Session = Depends(get_session)):
                       TO_CHAR(last_active_time, 'YYYY-MM-DD HH24:MI:SS') AS last_active_time
                  FROM (
                         SELECT sql_id, parsing_schema_name, executions, elapsed_time, cpu_time, last_active_time
-                          FROM v$sql
+                          FROM v$sql s
                          WHERE elapsed_time > 0
+                           AND parsing_schema_name IS NOT NULL
+                           AND NOT EXISTS (
+                                 SELECT 1 FROM dba_users u
+                                  WHERE u.username = s.parsing_schema_name
+                                    AND u.oracle_maintained = 'Y'
+                               )
                          ORDER BY elapsed_time DESC
                       )
                 WHERE ROWNUM <= 5"""
@@ -91,8 +103,14 @@ async def ops_usage(session: Session = Depends(get_session)):
                       TO_CHAR(last_active_time, 'YYYY-MM-DD HH24:MI:SS') AS last_active_time
                  FROM (
                         SELECT sql_id, parsing_schema_name, executions, elapsed_time, cpu_time, last_active_time
-                          FROM v$sql
+                          FROM v$sql s
                          WHERE cpu_time > 0
+                           AND parsing_schema_name IS NOT NULL
+                           AND NOT EXISTS (
+                                 SELECT 1 FROM dba_users u
+                                  WHERE u.username = s.parsing_schema_name
+                                    AND u.oracle_maintained = 'Y'
+                               )
                          ORDER BY cpu_time DESC
                       )
                 WHERE ROWNUM <= 5"""
@@ -114,8 +132,14 @@ async def ops_usage(session: Session = Depends(get_session)):
                       TO_CHAR(last_active_time, 'YYYY-MM-DD HH24:MI:SS') AS last_active_time
                  FROM (
                         SELECT sql_id, parsing_schema_name, executions, buffer_gets, elapsed_time, last_active_time
-                          FROM v$sql
+                          FROM v$sql s
                          WHERE buffer_gets > 0
+                           AND parsing_schema_name IS NOT NULL
+                           AND NOT EXISTS (
+                                 SELECT 1 FROM dba_users u
+                                  WHERE u.username = s.parsing_schema_name
+                                    AND u.oracle_maintained = 'Y'
+                               )
                          ORDER BY buffer_gets DESC
                       )
                 WHERE ROWNUM <= 5"""

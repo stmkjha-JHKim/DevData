@@ -1,3 +1,2 @@
-2026/09/08-13:13:12.107 642c Reusing MANIFEST D:\STMKJHA\77.app\orapulse\orapulse\data\browser-profile\Default\Local Storage\leveldb/MANIFEST-000001
-2026/09/08-13:13:12.114 642c Recovering log #3
-2026/09/08-13:13:12.120 642c Reusing old log D:\STMKJHA\77.app\orapulse\orapulse\data\browser-profile\Default\Local Storage\leveldb/000003.log 
+2026/09/08-15:49:06.615 4018 Creating DB D:\STMKJHA\69.DevData\data\browser-profile\Default\Local Storage\leveldb since it was missing.
+2026/09/08-15:49:07.348 4018 Reusing MANIFEST D:\STMKJHA\69.DevData\data\browser-profile\Default\Local Storage\leveldb/MANIFEST-000001

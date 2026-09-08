@@ -4,9 +4,11 @@ text, and killing a session."""
 
 import re
 
+import sqlparse
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
 
+import sql_plan_analysis
 from .core import Session, dict_rowfactory, get_oracle_connection, get_session, invalidate_cached_result
 
 router = APIRouter()
@@ -108,6 +110,96 @@ async def session_sql(request: Request, session: Session = Depends(get_session))
         )
         dict_rowfactory(cursor)
         return {"success": True, "data": await cursor.fetchall()}
+    except Exception as err:
+        return {"success": False, "message": f"You do not have permission to view this. ({err})"}
+    finally:
+        if connection:
+            try:
+                await connection.close()
+            except Exception as close_err:
+                print(f"Error while closing connection: {close_err}")
+
+
+# Loaded lazily as a second section of the SQL detail modal (after the
+# SQL-text section from /api/session-sql above has already rendered) for
+# every SQL_ID link across the app: a formatted (reindented) copy of the
+# same shared-pool SQL text, its current execution plan from V$SQL_PLAN,
+# and a rule-based analysis of that plan (see sql_plan_analysis.py). Reads
+# only V$SQL/V$SQL_PLAN -- no EXPLAIN PLAN re-execution and no DBMS_XPLAN
+# package privilege needed -- so, like the SQL text itself, this is only
+# available while the cursor is still cached in the shared pool.
+@router.get("/api/sql-plan")
+async def sql_plan(request: Request, session: Session = Depends(get_session)):
+    creds = session.get("db_creds")
+    if not creds:
+        return JSONResponse({"success": False, "message": "Login required."}, status_code=401)
+
+    sql_id = (request.query_params.get("sqlId") or "").strip()
+    if not sql_id or not re.fullmatch(r"[0-9a-zA-Z]+", sql_id):
+        return JSONResponse(
+            {"success": False, "message": "A valid sqlId parameter is required."}, status_code=400
+        )
+
+    connection = None
+    try:
+        connection = await get_oracle_connection(creds)
+        cursor = connection.cursor()
+        await cursor.execute(
+            """SELECT child_number,
+                      DBMS_LOB.SUBSTR(sql_fulltext, 4000, 1) AS sql_text
+                 FROM v$sql
+                WHERE sql_id = :sqlId
+                ORDER BY last_active_time DESC
+                FETCH FIRST 1 ROWS ONLY""",
+            {"sqlId": sql_id},
+        )
+        dict_rowfactory(cursor)
+        rows = await cursor.fetchall()
+        if not rows:
+            return {"success": True, "found": False}
+
+        child_number = rows[0]["CHILD_NUMBER"]
+        raw_sql = rows[0]["SQL_TEXT"] or ""
+        try:
+            formatted_sql = (
+                sqlparse.format(raw_sql, reindent=True, keyword_case="upper", indent_width=2)
+                if raw_sql
+                else ""
+            )
+        except Exception:
+            formatted_sql = raw_sql
+
+        await cursor.execute(
+            """SELECT id,
+                      parent_id,
+                      depth,
+                      operation,
+                      options,
+                      object_owner,
+                      object_name,
+                      object_type,
+                      cost,
+                      cardinality,
+                      bytes,
+                      access_predicates,
+                      filter_predicates
+                 FROM v$sql_plan
+                WHERE sql_id = :sqlId AND child_number = :childNumber
+                ORDER BY id""",
+            {"sqlId": sql_id, "childNumber": child_number},
+        )
+        dict_rowfactory(cursor)
+        plan_rows = await cursor.fetchall()
+        findings = sql_plan_analysis.analyze_plan(plan_rows)
+
+        return {
+            "success": True,
+            "found": True,
+            "sqlId": sql_id,
+            "formattedSql": formatted_sql,
+            "plan": plan_rows,
+            "findings": findings,
+        }
     except Exception as err:
         return {"success": False, "message": f"You do not have permission to view this. ({err})"}
     finally:

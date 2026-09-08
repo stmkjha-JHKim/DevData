@@ -1,3 +1,5 @@
-2026/09/08-11:58:31.543 6520 Reusing MANIFEST D:\STMKJHA\77.app\orapulse\orapulse\data\browser-profile\Default\Site Characteristics Database/MANIFEST-000001
-2026/09/08-11:58:31.548 6520 Recovering log #3
-2026/09/08-11:58:31.548 6520 Reusing old log D:\STMKJHA\77.app\orapulse\orapulse\data\browser-profile\Default\Site Characteristics Database/000003.log 
+2026/09/08-15:49:06.699 2120 Log #3: 9 ops saved to Table #4 OK
+2026/09/08-15:49:06.831 2120 Archiving D:\STMKJHA\69.DevData\data\browser-profile\Default\Site Characteristics Database/000003.log: OK
+2026/09/08-15:49:06.831 2120 Table #4: 9 entries OK
+2026/09/08-15:49:06.839 2120 Archiving D:\STMKJHA\69.DevData\data\browser-profile\Default\Site Characteristics Database/MANIFEST-000001: OK
+2026/09/08-15:49:07.187 2120 **** Repaired leveldb D:\STMKJHA\69.DevData\data\browser-profile\Default\Site Characteristics Database; recovered 1 files; 266 bytes. Some data may have been lost. ****

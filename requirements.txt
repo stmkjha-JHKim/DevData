@@ -4,3 +4,4 @@ oracledb>=4.0
 cryptography>=50.0
 pystray>=0.19
 Pillow>=11.0
+sqlparse>=0.5
