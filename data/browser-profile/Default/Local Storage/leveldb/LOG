@@ -1,2 +1,3 @@
-2026/09/08-15:49:06.615 4018 Creating DB D:\STMKJHA\69.DevData\data\browser-profile\Default\Local Storage\leveldb since it was missing.
-2026/09/08-15:49:07.348 4018 Reusing MANIFEST D:\STMKJHA\69.DevData\data\browser-profile\Default\Local Storage\leveldb/MANIFEST-000001
+2026/09/09-14:23:38.686 6c7c Reusing MANIFEST D:\STMKJHA\69.DevData\data\browser-profile\Default\Local Storage\leveldb/MANIFEST-000001
+2026/09/09-14:23:38.693 6c7c Recovering log #3
+2026/09/09-14:23:38.723 6c7c Reusing old log D:\STMKJHA\69.DevData\data\browser-profile\Default\Local Storage\leveldb/000003.log 

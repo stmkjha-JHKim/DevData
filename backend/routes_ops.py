@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 
 from .core import (
+    IS_DEMO_MODE,
     Session,
     cache_key,
     dict_rowfactory,
@@ -17,6 +18,14 @@ from .core import (
     get_session,
     set_cached_result,
 )
+
+# Demo build: these four Ops tab cards are hidden outright (see
+# dashboard.html's data-demo-hide attribute on each and applyDemoModeUi()
+# in app-shell.js), so their queries are skipped entirely below rather than
+# fetching data nothing will ever display. Every other Ops section (Key
+# Parameters, Undo, Instance Efficiency, Load Profile, Redo Log, Top SQL,
+# Wait Events) is unaffected and stays fully functional in demo mode.
+_DEMO_HIDDEN_STUB = {"ok": True, "demoDisabled": True, "data": []}
 
 router = APIRouter()
 
@@ -224,28 +233,31 @@ async def ops_usage(session: Session = Depends(get_session)):
 
     # Tablespace I/O Stats, at the datafile level, top 10 by physical reads
     # -- read-heavy datafiles are usually the ones worth investigating first.
-    try:
-        cursor = connection.cursor()
-        await cursor.execute(
-            """SELECT tablespace_name, file_name, physical_reads, physical_writes, avg_read_ms, avg_write_ms
-                 FROM (
-                        SELECT ts.name AS tablespace_name,
-                               df.name AS file_name,
-                               fs.phyrds AS physical_reads,
-                               fs.phywrts AS physical_writes,
-                               ROUND(fs.readtim / NULLIF(fs.phyrds, 0), 2) AS avg_read_ms,
-                               ROUND(fs.writetim / NULLIF(fs.phywrts, 0), 2) AS avg_write_ms
-                          FROM v$filestat fs
-                          JOIN v$datafile df ON fs.file# = df.file#
-                          JOIN v$tablespace ts ON df.ts# = ts.ts#
-                         ORDER BY fs.phyrds DESC
-                      )
-                WHERE ROWNUM <= 10"""
-        )
-        dict_rowfactory(cursor)
-        result["tablespaceIo"] = {"ok": True, "data": await cursor.fetchall()}
-    except Exception as err:
-        result["tablespaceIo"] = {"ok": False, "message": f"You do not have permission to view this. ({err})"}
+    if IS_DEMO_MODE:
+        result["tablespaceIo"] = _DEMO_HIDDEN_STUB
+    else:
+        try:
+            cursor = connection.cursor()
+            await cursor.execute(
+                """SELECT tablespace_name, file_name, physical_reads, physical_writes, avg_read_ms, avg_write_ms
+                     FROM (
+                            SELECT ts.name AS tablespace_name,
+                                   df.name AS file_name,
+                                   fs.phyrds AS physical_reads,
+                                   fs.phywrts AS physical_writes,
+                                   ROUND(fs.readtim / NULLIF(fs.phyrds, 0), 2) AS avg_read_ms,
+                                   ROUND(fs.writetim / NULLIF(fs.phywrts, 0), 2) AS avg_write_ms
+                              FROM v$filestat fs
+                              JOIN v$datafile df ON fs.file# = df.file#
+                              JOIN v$tablespace ts ON df.ts# = ts.ts#
+                             ORDER BY fs.phyrds DESC
+                          )
+                    WHERE ROWNUM <= 10"""
+            )
+            dict_rowfactory(cursor)
+            result["tablespaceIo"] = {"ok": True, "data": await cursor.fetchall()}
+        except Exception as err:
+            result["tablespaceIo"] = {"ok": False, "message": f"You do not have permission to view this. ({err})"}
 
     # Key Instance Parameters.
     try:
@@ -272,43 +284,49 @@ async def ops_usage(session: Session = Depends(get_session)):
         result["keyParameters"] = {"ok": False, "message": f"You do not have permission to view this. ({err})"}
 
     # TEMP Tablespace Usage.
-    try:
-        cursor = connection.cursor()
-        await cursor.execute(
-            """SELECT tablespace_name,
-                      ROUND(SUM(bytes_used) / 1024 / 1024 / 1024, 2) AS used_gb,
-                      ROUND(SUM(bytes_free) / 1024 / 1024 / 1024, 2) AS free_gb,
-                      ROUND(SUM(bytes_used + bytes_free) / 1024 / 1024 / 1024, 2) AS total_gb,
-                      ROUND(SUM(bytes_used) / SUM(bytes_used + bytes_free) * 100, 2) AS used_pct
-                 FROM v$temp_space_header
-                GROUP BY tablespace_name"""
-        )
-        dict_rowfactory(cursor)
-        result["tempTablespaceUsage"] = {"ok": True, "data": await cursor.fetchall()}
-    except Exception as err:
-        result["tempTablespaceUsage"] = {"ok": False, "message": f"You do not have permission to view this. ({err})"}
+    if IS_DEMO_MODE:
+        result["tempTablespaceUsage"] = _DEMO_HIDDEN_STUB
+    else:
+        try:
+            cursor = connection.cursor()
+            await cursor.execute(
+                """SELECT tablespace_name,
+                          ROUND(SUM(bytes_used) / 1024 / 1024 / 1024, 2) AS used_gb,
+                          ROUND(SUM(bytes_free) / 1024 / 1024 / 1024, 2) AS free_gb,
+                          ROUND(SUM(bytes_used + bytes_free) / 1024 / 1024 / 1024, 2) AS total_gb,
+                          ROUND(SUM(bytes_used) / SUM(bytes_used + bytes_free) * 100, 2) AS used_pct
+                     FROM v$temp_space_header
+                    GROUP BY tablespace_name"""
+            )
+            dict_rowfactory(cursor)
+            result["tempTablespaceUsage"] = {"ok": True, "data": await cursor.fetchall()}
+        except Exception as err:
+            result["tempTablespaceUsage"] = {"ok": False, "message": f"You do not have permission to view this. ({err})"}
 
     # TEMP Usage by Session.
-    try:
-        cursor = connection.cursor()
-        await cursor.execute(
-            """SELECT s.sid,
-                      s.serial# AS serial_num,
-                      s.username,
-                      s.machine,
-                      s.program,
-                      s.sql_id,
-                      ROUND(SUM(u.blocks * t.block_size) / 1024 / 1024, 2) AS temp_mb
-                 FROM v$tempseg_usage u
-                 JOIN v$session s ON u.session_addr = s.saddr
-                 JOIN dba_tablespaces t ON u.tablespace = t.tablespace_name
-                GROUP BY s.sid, s.serial#, s.username, s.machine, s.program, s.sql_id
-                ORDER BY temp_mb DESC"""
-        )
-        dict_rowfactory(cursor)
-        result["tempSessionUsage"] = {"ok": True, "data": await cursor.fetchall()}
-    except Exception as err:
-        result["tempSessionUsage"] = {"ok": False, "message": f"You do not have permission to view this. ({err})"}
+    if IS_DEMO_MODE:
+        result["tempSessionUsage"] = _DEMO_HIDDEN_STUB
+    else:
+        try:
+            cursor = connection.cursor()
+            await cursor.execute(
+                """SELECT s.sid,
+                          s.serial# AS serial_num,
+                          s.username,
+                          s.machine,
+                          s.program,
+                          s.sql_id,
+                          ROUND(SUM(u.blocks * t.block_size) / 1024 / 1024, 2) AS temp_mb
+                     FROM v$tempseg_usage u
+                     JOIN v$session s ON u.session_addr = s.saddr
+                     JOIN dba_tablespaces t ON u.tablespace = t.tablespace_name
+                    GROUP BY s.sid, s.serial#, s.username, s.machine, s.program, s.sql_id
+                    ORDER BY temp_mb DESC"""
+            )
+            dict_rowfactory(cursor)
+            result["tempSessionUsage"] = {"ok": True, "data": await cursor.fetchall()}
+        except Exception as err:
+            result["tempSessionUsage"] = {"ok": False, "message": f"You do not have permission to view this. ({err})"}
 
     # Datafile Autoextend Status -- for each datafile, whether AUTOEXTEND is
     # enabled and (if so) how close it is to hitting MAXSIZE. A datafile
@@ -316,27 +334,30 @@ async def ops_usage(session: Session = Depends(get_session)):
     # once its tablespace fills up, so this is an early-warning list, with
     # the files closest to their max size (or without autoextend at all)
     # surfaced first, capped at 20 rows.
-    try:
-        cursor = connection.cursor()
-        await cursor.execute(
-            """SELECT * FROM (
-                 SELECT tablespace_name,
-                        file_name,
-                        autoextensible,
-                        ROUND(bytes / 1024 / 1024, 2) AS current_mb,
-                        CASE WHEN autoextensible = 'YES' AND maxbytes > 0
-                             THEN ROUND(maxbytes / 1024 / 1024 / 1024, 2) END AS max_gb,
-                        CASE WHEN autoextensible = 'YES' AND maxbytes > 0
-                             THEN ROUND(bytes / maxbytes * 100, 2) END AS used_pct_of_max
-                   FROM dba_data_files
-                  ORDER BY used_pct_of_max DESC NULLS LAST
-               ) WHERE ROWNUM <= 20
-              ORDER BY used_pct_of_max DESC NULLS LAST"""
-        )
-        dict_rowfactory(cursor)
-        result["datafileAutoextend"] = {"ok": True, "data": await cursor.fetchall()}
-    except Exception as err:
-        result["datafileAutoextend"] = {"ok": False, "message": f"You do not have permission to view this. ({err})"}
+    if IS_DEMO_MODE:
+        result["datafileAutoextend"] = _DEMO_HIDDEN_STUB
+    else:
+        try:
+            cursor = connection.cursor()
+            await cursor.execute(
+                """SELECT * FROM (
+                     SELECT tablespace_name,
+                            file_name,
+                            autoextensible,
+                            ROUND(bytes / 1024 / 1024, 2) AS current_mb,
+                            CASE WHEN autoextensible = 'YES' AND maxbytes > 0
+                                 THEN ROUND(maxbytes / 1024 / 1024 / 1024, 2) END AS max_gb,
+                            CASE WHEN autoextensible = 'YES' AND maxbytes > 0
+                                 THEN ROUND(bytes / maxbytes * 100, 2) END AS used_pct_of_max
+                       FROM dba_data_files
+                      ORDER BY used_pct_of_max DESC NULLS LAST
+                   ) WHERE ROWNUM <= 20
+                  ORDER BY used_pct_of_max DESC NULLS LAST"""
+            )
+            dict_rowfactory(cursor)
+            result["datafileAutoextend"] = {"ok": True, "data": await cursor.fetchall()}
+        except Exception as err:
+            result["datafileAutoextend"] = {"ok": False, "message": f"You do not have permission to view this. ({err})"}
 
     # Redo Log Status.
     try:

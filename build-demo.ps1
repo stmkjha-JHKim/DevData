@@ -6,13 +6,23 @@
 # That marker is all backend/core.py's IS_DEMO_MODE checks for at startup
 # -- its mere presence flips the running app into demo mode, which (see
 # app-shell.js's applyDemoModeUi() and switchTab(), and the server-side
-# guards in routes_session.py/routes_table_stats.py) disables:
+# guards in routes_session.py/routes_table_stats.py/routes_report.py/
+# routes_connect.py) disables:
 #   - the Current Session List's right-click/long-press context menu
 #     (both "View Running Query" and "Kill Session (IMMEDIATE)") entirely
 #   - the Table Statistics Collection card's gather-stats actions (the
 #     per-row context menu item and the "Gather Statistics for Selected"
 #     batch button)
 #   - every tab except DashBoard and Ops
+#   - the Report button (Weekly DB Health Report generation)
+#   - the Scheduler/Job Failures and Account Security cards (hidden
+#     outright, query skipped server-side too)
+#   - Alert Log Analysis (card stays, but shows a "not supported in the
+#     demo version" note instead of actually querying V$DIAG_ALERT_EXT)
+#   - four Ops tab cards: TEMP Tablespace Usage, TEMP Usage by Session,
+#     Datafile Autoextend Status, Tablespace I/O Stats (hidden outright,
+#     query skipped server-side too)
+#   - Favorites on the connect screen, capped at 1 saved entry
 # A normal build.ps1/build-folder.ps1/build-installer.ps1 run never
 # creates this file, so the regular release build is never affected.
 #

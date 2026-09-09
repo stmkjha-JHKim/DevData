@@ -1,983 +1,1941 @@
-  // ---------------------------------------------------------------------
-  // i18n (Korean / English toggle). Scope: the client-authored UI chrome --
-  // card titles, buttons, table headers, tooltips, static empty-state and
-  // confirm/toast text written in this file. Deliberately OUT of scope:
-  // raw messages that come from the server (main.js) or the Oracle driver
-  // itself (e.g. `${section.message}`, `${err.message}` -- DB/driver error
-  // text, which is technical and not meaningfully "translatable" without a
-  // parallel localization layer in the backend). Default language is
-  // English; the choice is remembered in localStorage per device/browser.
-  // ---------------------------------------------------------------------
-  const I18N = {
-    en: {
-      appSubtitle: 'Oracle Database Monitoring(ODM)',
-      btnRefresh: 'Refresh',
-      btnDisconnect: 'Disconnect',
-      loadingLabel: 'Loading...',
-      demoDisabledTooltip: 'Not available in the demo version.',
-      tabMain: 'DashBoard',
-      tabOps: 'Ops',
-      tabRecovery: 'Recovery',
-      tabTuning: 'Tuning',
-      // Deliberately the same literal label in both languages (not
-      // translated) -- this tab merges what used to be separate "Object
-      // View" and "SQL" tabs, and "Obj View/SQL" reads fine as-is in
-      // Korean UI too, per explicit request.
-      tabObjectView: 'Obj View/SQL',
-      tabHelp: 'Help',
-      cardHelp: 'User Manual',
-      helpSearchPlaceholder: 'Search the manual...',
-      helpSearchNoMatches: 'No matches',
-      helpSearchMatchCount: '{current} of {total}',
-      cardInstance: 'Instance Information',
-      cardCombo: 'CPU / Memory Usage',
-      cardSessionList: 'Current Session List (USER sessions only)',
-      cardBlocking: 'Blocking Session',
-      cardLongOps: 'Long Running Session',
-      cardWaitEvent: 'Top 5 Wait Events',
-      cardTableStats: 'Table Statistics Collection',
-      cardJobFailures: 'Scheduler/Job Failures',
-      cardAccountSecurity: 'Account Security',
-      cardAlertLog: 'Alert Log Analysis',
-      cardTempSpace: 'TEMP Tablespace Usage',
-      cardTempSession: 'TEMP Usage by Session',
-      cardAutoextend: 'Datafile Autoextend Status',
-      cardRecoveryDest: 'Fast Recovery Area (Overview)',
-      cardRecoveryType: 'FRA Usage by File Type',
-      cardRecentDml: 'Recent DML (Top 50, Most Recent First)',
-      cardObjectView: 'Object View',
-      objectViewFilterPlaceholder: 'Enter filter text...',
-      objectViewSelectPrompt: 'Select a user to browse its objects.',
-      objectViewNoSelection: 'Select an object on the left to view its script.',
-      objectViewFooterNote: '* Object View is not part of the 15-second auto-refresh cycle.',
-      objectViewNoObjectsForOwner: 'No objects were found for {owner}.',
-      objectViewTruncatedNote: 'Showing the first 3000 of {n} total objects.',
-      objectViewLoadFailedMsg: 'Failed to load the object list: {msg}',
-      objectViewNoMatch: 'No objects match the filter conditions.',
-      objectViewDdlLoadFailed: 'Failed to load the script: {msg}',
-      cardSqlRunner: 'SQL Query Runner',
-      cardTopQueries: 'Top 5 Long-Running Queries',
-      cardTopQueriesCpu: 'Top 5 SQL by CPU Time',
-      cardTopQueriesGets: 'Top 5 SQL by Buffer Gets',
-      cardInstanceEfficiency: 'Instance Efficiency %',
-      cardLoadProfile: 'Load Profile (per second, since startup)',
-      cardTablespaceIo: 'Tablespace I/O Stats',
-      cardKeyParams: 'Key Instance Parameters',
-      cardUndoConfig: 'Undo Configuration & Status',
-      cardRedoLog: 'Redo Log Status',
-      mainFooterNote: '* If your account lacks permission for a given item, a "You do not have permission to view this." message may be shown.<br>The screen refreshes automatically every 15 seconds. If there is no activity for 30 minutes, the session will expire and you will need to log in again.',
-      opsFooterNote: '* Ops tab data is not part of the 15-second auto-refresh cycle -- use the Refresh button above to update it.',
-      recoveryFooterNote: '* Recovery area usage is not part of the 15-second auto-refresh cycle -- use the Refresh button above to update it.',
-      cardTuning: 'Tuning Advisor',
-      btnRunCheck: 'Run Check',
-      tuningIdlePrompt: 'Loading...',
-      tuningFooterNote: '* Uses only license-free views (V$SYSSTAT, V$LIBRARYCACHE, V$SYSTEM_EVENT, V$SQL, DBA_DATA_FILES, DBA_FREE_SPACE, DBA_OBJECTS, V$SESSION) -- this works on any Oracle edition/version, with no Diagnostics/Tuning Pack license required. Rate-based checks (hit ratios, parsing, wait events) compare against the previous check, so the very first check for a database may show "not enough history yet" for those until you check again later.',
-      tuningSevCritical: 'CRITICAL',
-      tuningSevWarning: 'WARNING',
-      tuningSevInfo: 'INFO',
-      tuningCatMemory: 'Memory',
-      tuningCatSql: 'SQL',
-      tuningCatStorage: 'Storage',
-      tuningCatObject: 'Object',
-      tuningCatLock: 'Lock',
-      tuningCatWaitEvent: 'Wait Event',
-      tuningCheckedAt: 'Checked at {time}',
-      tuningIntervalNote: 'compared to {sec}s earlier',
-      tuningNoIssues: '✓ No issues found -- the engine looks healthy right now.',
-      tuningInsufficientHistoryNote: 'Some rate-based checks (hit ratios, parsing, wait events) don’t have enough history yet -- run the check again later to see them.',
-      tuningLoadFailedMsg: 'Failed to run the tuning check: {msg}',
-      tuningTitleBufferCacheHitRatio: 'Buffer Cache Hit Ratio',
-      tuningMsgBufferCacheHitRatio: '{value}% (recommended: 90% or higher). Consider increasing the buffer cache (SGA) size, or reducing unnecessary full table scans.',
-      tuningTitleLibraryCacheHitRatio: 'Library Cache Hit Ratio',
-      tuningMsgLibraryCacheHitRatio: '{value}% (recommended: 99% or higher). Check bind variable usage and the shared pool size.',
-      tuningTitleHardParseRatio: 'Hard Parse Ratio',
-      tuningMsgHardParseRatio: '{value}% of parses were hard parses (recommended: below 10%). This often indicates literal SQL without bind variables.',
-      tuningTitleDiskSort: 'Disk Sorts Occurred',
-      tuningMsgDiskSort: '{count} disk sort(s) occurred since the last check. Consider increasing PGA/sort area size, or tuning the query causing them.',
-      tuningTitleWaitEvent: 'Top Wait Events',
-      tuningColIncrease: 'Increase',
-      tuningColHint: 'Hint',
-      tuningTitleTablespaceUsage: 'Tablespace Usage',
-      tuningMsgTablespaceUsageGeneric: 'The following tablespace(s) are running low on free space (recommended: below 90% used). Consider adding a datafile or cleaning up unused data.',
-      tuningColTablespace: 'Tablespace',
-      tuningColUsage: 'Usage',
-      tuningTitleInvalidObjects: 'Invalid Objects Found ({count})',
-      tuningMsgInvalidObjectsGeneric: 'Recompile these objects (e.g. via UTL_RECOMP).',
-      tuningTruncatedNote: 'Showing the first 50 of {n} total.',
-      tuningTitleBlockingSession: 'Sessions Are Being Blocked ({count})',
-      tuningMsgBlockingSessionGeneric: 'Check for long-running uncommitted transactions, and consider killing the blocking session if needed.',
-      tuningColWaiter: 'Waiting Session (SID / User)',
-      tuningColBlocker: 'Blocking Session (SID / User)',
-      tuningTitleSlowSql: 'Slow SQL',
-      tuningColAvgElapsed: 'Avg Elapsed',
-      wait_hint_seq_read: 'Typically single-block I/O via an index. Check index design and storage I/O performance.',
-      wait_hint_scattered_read: 'Typically a full table/index scan. Check for missing indexes or stale statistics.',
-      wait_hint_log_file_sync: 'Waiting for redo log writes at commit. Consider reducing commit frequency, or checking redo log I/O performance.',
-      wait_hint_log_file_parallel_write: 'Waiting for redo log file writes. Check the I/O performance of the disk holding the redo logs.',
-      wait_hint_buffer_busy: 'Concurrent access to the same block. Check for hot blocks and freelist/ITL settings.',
-      wait_hint_latch_free: 'Latch contention on a shared resource. May indicate a need for SQL tuning.',
-      wait_hint_direct_path: 'Direct-path I/O, often from parallel operations or large sorts/joins. Review parallelism and PGA settings.',
-      wait_hint_row_lock: 'Row-level lock contention. Check for long-running uncommitted transactions.',
-      wait_hint_free_buffer: 'Waiting for a free buffer -- DBWR may not be keeping up, or the buffer cache may be too small.',
-      wait_hint_default: 'Check the sessions and SQL associated with this wait event.',
-      sqlRunnerFooterNote: '* This app connects as SYSTEM, so only SELECT statements are allowed here -- there is no DML/DDL execution, to avoid a mistyped query affecting the whole instance. DATE/TIMESTAMP columns are shown as YYYY-MM-DD HH24:MI:SS. Query results stay on screen until you run another query.',
-      sqlRunnerPlaceholder: 'SELECT * FROM v$version',
-      btnRunQuery: '▶ Run',
-      btnClear: 'Clear',
-      sqlRunnerHint: 'SELECT statements only, one statement at a time. Results are capped at 200 rows.',
-      sqlRunnerIdle: 'Enter a SELECT query above and click Run.',
-      sqlRunnerRunningLabel: '⏳ Running...',
-      sqlRunnerEmptyInput: 'Please enter a query to run.',
-      sqlRunnerNoColumns: 'The query returned no columns.',
-      sqlRunnerNoRows: 'The query ran successfully but returned no rows.',
-      sqlRunnerRowCount: '{n} row(s) returned.',
-      sqlRunnerCapNote: '* Results are capped at 200 rows. Add your own FETCH FIRST/WHERE conditions to narrow down a larger result set.',
-      btnCancelQuery: 'Cancel',
-      sqlRunnerCancelled: 'Query cancelled.',
-      sqlRunnerCancelRequested: 'Cancel requested -- waiting for the query to stop.',
-      sqlRunnerCancelFailed: 'Failed to cancel: {msg}',
-      sessionDetailDefaultTitle: 'Session Detail',
-      ctxMenuTitleTable: 'Table',
-      ctxMenuTitleSession: 'Session',
-      btnGatherStats: '📊 Gather Statistics',
-      btnViewTableProperties: '🔍 View Table Properties',
-      viewRunningQuery: '🔍 View Running Query',
-      viewRunningQueryDisabled: '🔍 View Running Query (no active SQL)',
-      killSessionImmediate: '🛑 Kill Session (IMMEDIATE)',
-      tablePropertiesTitleWithName: 'Table Properties ({name})',
-      tablePropertiesNotFound: 'This table could not be found (it may have been dropped, or you may lack DBA_TABLES access).',
-      tablePropertiesBasicInfoTitle: 'Basic Info',
-      tablePropertiesColumnsTitle: 'Columns',
-      tablePropertiesIndexesTitle: 'Indexes',
-      tablePropertiesPartitioned: 'Partitioned',
-      tablePropertiesAvgRowLen: 'Avg Row Length',
-      tablePropertiesLogging: 'Logging',
-      tablePropertiesCompression: 'Compression',
-      tablePropertiesDegree: 'Degree',
-      tablePropertiesNoColumns: 'No columns found.',
-      tablePropertiesNoIndexes: 'This table has no indexes.',
-      tablePropertiesColumnName: 'Column Name',
-      tablePropertiesDataType: 'Data Type',
-      tablePropertiesNullable: 'Nullable',
-      tablePropertiesIndexName: 'Index Name',
-      tablePropertiesUniqueness: 'Uniqueness',
-      tablePropertiesIndexColumns: 'Columns',
-      tablePropertiesLoadFailed: 'Failed to load table properties: {msg}',
-      notNullLabel: 'NOT NULL',
-      nullableLabel: 'Y',
-      btnReset: 'Reset',
-      dragHandleTitle: 'Drag to reorder or move to another tab',
-      selectUserPlaceholder: 'Select a user',
-      tableStatsSelectPrompt: 'Select a user to see per-table statistics collection status (sorted by oldest statistics first).',
-      filterLabelStatus: 'Status',
-      filterLabelMachine: 'Machine',
-      filterLabelProgram: 'Program',
-      filterLabelType: 'Type',
-      filterLabelSchema: 'Schema',
-      filterAllOption: '{label}: All',
-      instanceNameLabel: 'Instance Name',
-      statusLabel: 'Status',
-      hostLabel: 'Host',
-      versionLabel: 'Version',
-      startupTimeLabel: 'Startup Time',
-      uptimeLabel: 'Uptime',
-      sessionCountConnected: '{n} connected',
-      sessionCountNoPermission: 'No permission to view',
-      sessionCountTooltip: 'Count of pure user sessions excluding background processes (v$session, type=USER)',
-      comboCpuLabel: 'CPU Usage',
-      comboMemLabel: 'Memory Usage',
-      comboCpuUtilLabel: 'Host CPU Utilization (v$sysmetric)',
-      comboMemUnknownPct: 'SGA {sga} MB + PGA {pga} MB (Percentage usage is not shown because the configured memory limit could not be determined)',
-      comboMemWithPct: 'Used {used} MB (SGA {sga} + PGA {pga}) / Target {target} MB',
-      sessionListEmpty: 'There are no USER sessions currently found.',
-      sessionListNoMatch: 'No sessions match the filter conditions.',
-      sessionRowTooltip: 'Click to view wait detail information. Right-click (or long-press) for more actions: view running query / kill session.',
-      statusHeader: 'STATUS',
-      machineHeader: 'Machine',
-      programHeader: 'Program',
-      logonTimeHeader: 'Logon Time',
-      filteredCount: 'Filtered: {n} / Total: {m}',
-      sessionListTruncatedNote: 'There are many sessions, so only the top 50 are shown, ACTIVE sessions first, then sorted by logon time, oldest first.',
-      blockingEmpty: 'There are currently no sessions blocking other sessions.',
-      waitingSessionHeader: 'Waiting Session (SID/SERIAL#)',
-      waitingUserHeader: 'Waiting User',
-      waitingMachineHeader: 'Waiting Machine',
-      blockingSessionParenHeader: 'Blocking Session (SID/SERIAL#)',
-      blockingUserHeader: 'Blocking User',
-      waitClassHeader: 'Wait Class',
-      waitTimeHeader: 'Wait Time',
-      longOpsEmpty: 'There are currently no long-running operations (full scans, backups, index creation, etc.).',
-      longOpsElapsedRemaining: 'Elapsed {elapsed} · Estimated time remaining {remaining}',
-      waitEventsEmpty: 'No wait events found.',
-      eventHeader: 'Event',
-      totalWaitsHeader: 'Total Waits',
-      totalWaitTimeHeader: 'Total Wait Time',
-      averageWaitTimeHeader: 'Average Wait Time',
-      waitEventsNote: '* Cumulative since instance startup (v$system_event).',
-      ownerHeader: 'Owner',
-      objectNameHeader: 'Object Name',
-      typeHeader: 'Type',
-      lastDdlTimeHeader: 'Last DDL Time',
-      jobFailuresLoadFailed: 'Failed to load scheduler/job failure history.',
-      jobFailuresNoMatch: 'No failures match the filter conditions.',
-      schedulerFailuresTitle: 'DBMS_SCHEDULER Failures',
-      schedulerFailuresEmpty: 'No failed/stopped DBMS_SCHEDULER job runs found for the last {days} day(s).',
-      legacyJobsTitle: 'Legacy DBMS_JOB (DBA_JOBS)',
-      legacyJobsEmpty: 'No broken or failing legacy DBMS_JOB jobs found.',
-      jobFailuresNote: '* DBMS_SCHEDULER failures are sourced from DBA_SCHEDULER_JOB_RUN_DETAILS (job runs with any outcome other than SUCCEEDED, over the last {days} day(s) -- actual history depth also depends on each job class\'s own log_history retention setting). Legacy DBMS_JOB failures are sourced from DBA_JOBS and are a live snapshot (jobs currently BROKEN or with a nonzero failure count), not a history, since that older job type keeps no per-run log.',
-      jobNameHeader: 'Job Name',
-      errorCodeHeader: 'Error#',
-      durationSecHeader: 'Duration (sec)',
-      jobIdHeader: 'Job',
-      brokenHeader: 'Broken',
-      failuresHeader: 'Failures',
-      lastRunHeader: 'Last Run',
-      nextRunHeader: 'Next Run',
-      whatHeader: 'What',
-      accountSecurityLoadFailed: 'Failed to load account security status.',
-      lockedAccountsTitle: 'Locked Accounts',
-      lockedAccountsEmpty: 'No locked accounts found.',
-      expiringPasswordsTitle: 'Password Expiring/Expired',
-      expiringPasswordsEmpty: 'No accounts with a password expiring within {days} day(s) or already expired.',
-      accountSecurityNote: '* Both sections are sourced from DBA_USERS. Locked Accounts includes accounts locked manually or automatically after too many failed login attempts. Password Expiring/Expired lists accounts whose EXPIRY_DATE falls within the next {days} day(s) or has already passed; accounts with no password expiry at all (an UNLIMITED PASSWORD_LIFE_TIME profile) are not included.',
-      accountStatusHeader: 'Account Status',
-      profileHeader: 'Profile',
-      lockDateHeader: 'Lock Date',
-      expiryDateHeader: 'Expiry Date',
-      daysUntilExpiryHeader: 'Days Until Expiry',
-      alertSevIncident: 'Incident/Error',
-      alertSevError: 'Error',
-      alertSevWarning: 'Warning',
-      alertSevNotice: 'Notice',
-      alertLogLoadFailed: 'Failed to load the alert log.',
-      alertLogEmpty: 'No errors or warnings found in the alert log for the last {days} day(s).',
-      timeHeader: 'Time',
-      severityHeader: 'Severity',
-      messageHeader: 'Message',
-      alertLogNote: '* Sourced from V$DIAG_ALERT_EXT, showing up to the 30 most recent entries containing an ORA- error code or classified as an error/incident over the last {days} day(s), most recent first.',
-      networkError: 'Unable to communicate with the server: {msg}',
-      tempSpaceLoadFailed: 'Failed to load TEMP tablespace usage.',
-      tempSpaceEmpty: 'No TEMP tablespaces found.',
-      tablespaceHeader: 'Tablespace',
-      usedHeader: 'Used',
-      freeHeader: 'Free',
-      totalHeader: 'Total',
-      usedPctHeader: 'Used %',
-      tempSpaceNote: '* Sourced from V$TEMP_SPACE_HEADER (allocated temp space; not the same as how much a session is actively using -- see the TEMP Usage by Session card below).',
-      tempSessionLoadFailed: 'Failed to load TEMP usage by session.',
-      tempSessionEmpty: 'No sessions are currently using TEMP space.',
-      usernameHeader: 'Username',
-      tempUsedHeader: 'TEMP Used',
-      tempSessionNote: '* Sourced from V$TEMP_SPACE_HEADER joined with V$TEMPSEG_USAGE, sorted by heaviest TEMP usage first.',
-      autoextendLoadFailed: 'Failed to load datafile autoextend status.',
-      autoextendEmpty: 'No datafiles found.',
-      autoextensibleHeader: 'Autoextend',
-      currentSizeHeader: 'Current Size',
-      maxSizeHeader: 'Max Size',
-      usedPctOfMaxHeader: 'Used % of Max',
-      autoextendNote: '* Sourced from DBA_DATA_FILES, sorted by proximity to MAXSIZE first (datafiles without autoextend enabled sort last since they have no configured limit to approach -- they simply fail with ORA-01653 once their tablespace is full). Top 20 shown.',
-      recoveryDestLoadFailed: 'Failed to load Fast Recovery Area usage.',
-      recoveryDestEmpty: 'No Fast Recovery Area destination is configured (DB_RECOVERY_FILE_DEST is not set).',
-      destinationHeader: 'Destination',
-      spaceLimitHeader: 'Space Limit',
-      reclaimableHeader: 'Reclaimable',
-      filesHeader: 'Files',
-      usedPctNetHeader: 'Used % (net of reclaimable)',
-      recoveryDestNote: '* Sourced from V$RECOVERY_FILE_DEST. "Used % (net of reclaimable)" excludes space that Oracle could automatically reclaim (e.g. already-backed-up archived logs), so it better reflects real pressure than raw used space.',
-      recoveryTypeLoadFailed: 'Failed to load FRA usage by file type.',
-      recoveryTypeEmpty: 'No FRA usage breakdown available.',
-      fileTypeHeader: 'File Type',
-      pctSpaceUsedHeader: '% Space Used',
-      pctReclaimableHeader: '% Reclaimable',
-      recoveryTypeNote: '* Sourced from V$FLASH_RECOVERY_AREA_USAGE, sorted by heaviest usage first. Percentages are relative to the total FRA size, not to each other.',
-      dmlLoadFailed: 'Failed to load recent DML.',
-      dmlEmptyPool: 'No cached DML (INSERT/UPDATE/DELETE/MERGE) statements were found in the shared pool.',
-      dmlNoMatch: 'No DML statements match the filter conditions.',
-      schemaHeader: 'Schema',
-      executionsHeader: 'Executions',
-      lastActiveHeader: 'Last Active',
-      sqlTextHeader: 'SQL Text',
-      sqlTextPreviewTooltip: 'Click to view the full SQL text',
-      sqlTextEmptyPlaceholder: '(empty)',
-      dmlNote: '* Sourced from V$SQL (COMMAND_TYPE = INSERT/UPDATE/DELETE/MERGE), top 50 by most recent LAST_ACTIVE_TIME. Click a row\'s SQL text to view it in full.',
-      recoveryUsageLoadFailed: 'Failed to load recovery area usage.',
-      opsUsageLoadFailed: 'Failed to load Ops tab data.',
-      topQueriesEmpty: 'No SQL statements were found in the shared pool for this ranking.',
-      rankHeader: '#',
-      elapsedTimeHeader: 'Elapsed Time',
-      cpuTimeHeader: 'CPU Time',
-      bufferGetsHeader: 'Buffer Gets',
-      topQueriesNote: '* Sourced from V$SQL, top 5 by cumulative ELAPSED_TIME since each statement entered the shared pool (not a single-execution time), restricted to real user schemas (Oracle-maintained accounts like SYS/SYSTEM are excluded). Click a SQL_ID to view its full text, formatted SQL, and execution plan analysis.',
-      topQueriesCpuNote: '* Sourced from V$SQL, top 5 by cumulative CPU_TIME since each statement entered the shared pool (not a single-execution time), restricted to real user schemas (Oracle-maintained accounts like SYS/SYSTEM are excluded). Click a SQL_ID to view its full text, formatted SQL, and execution plan analysis.',
-      topQueriesGetsNote: '* Sourced from V$SQL, top 5 by cumulative BUFFER_GETS (logical reads) since each statement entered the shared pool, restricted to real user schemas (Oracle-maintained accounts like SYS/SYSTEM are excluded). Click a SQL_ID to view its full text, formatted SQL, and execution plan analysis.',
-      bufferHitRatioLabel: 'Buffer Cache Hit Ratio',
-      libraryHitRatioLabel: 'Library Cache Hit Ratio',
-      softParsePctLabel: 'Soft Parse %',
-      executeToParsePctLabel: 'Execute to Parse %',
-      instanceEfficiencyNote: '* Based on the standard AWR "Instance Efficiency Percentages" formulas, computed from V$SYSSTAT/V$LIBRARYCACHE cumulative since instance startup (not a snapshot-interval delta).',
-      loadProfileRedoLabel: 'Redo Size (bytes/sec)',
-      loadProfileLogicalReadsLabel: 'Logical Reads (blocks/sec)',
-      loadProfilePhysicalReadsLabel: 'Physical Reads (blocks/sec)',
-      loadProfileUserCallsLabel: 'User Calls (calls/sec)',
-      loadProfileExecutesLabel: 'Executes (calls/sec)',
-      loadProfileTransactionsLabel: 'Transactions (tx/sec)',
-      loadProfileNote: '* Unlike AWR\'s Load Profile (averaged over one snapshot interval), these figures are averaged over the entire instance uptime, so a recent spike or lull is smoothed out.',
-      fileNameHeader: 'Data File',
-      physicalReadsHeader: 'Physical Reads',
-      physicalWritesHeader: 'Physical Writes',
-      avgReadTimeHeader: 'Avg Read Time (ms)',
-      avgWriteTimeHeader: 'Avg Write Time (ms)',
-      tablespaceIoEmpty: 'No tablespace I/O statistics were found.',
-      tablespaceIoNote: '* Sourced from V$FILESTAT at the datafile level, top 10 by total I/O (reads + writes). Average read/write time is in milliseconds.',
-      keyParamPasswordLifeTime: 'Password Life Time (days)',
-      keyParamSpfile: 'Using SPFILE',
-      keyParamSpfileYes: 'Yes',
-      keyParamSpfileNo: 'No (PFILE)',
-      keyParamAuditTrail: 'Audit Trail',
-      keyParamProcesses: 'Processes',
-      keyParamSessions: 'Sessions',
-      keyParamOpenCursors: 'Open Cursors',
-      keyParamDbFiles: 'DB Files',
-      keyParamUndoRetention: 'Undo Retention',
-      keyParamOptimizerMode: 'Optimizer Mode',
-      keyParamLogBuffer: 'Log Buffer',
-      keyParamArchiveMode: 'Archive Mode',
-      keyParamsNote: '* Sourced from V$PARAMETER / V$DATABASE / DBA_PROFILES (DEFAULT profile) -- instance/database-level values, not per-session overrides.',
-      undoManagementLabel: 'Undo Management',
-      undoTablespaceLabel: 'Undo Tablespace',
-      undoConfigRetentionLabel: 'Undo Retention',
-      undoConfigGuaranteeLabel: 'Retention Guarantee',
-      undoStatusTotalLabel: 'Tablespace Size (MB)',
-      undoStatusUsedLabel: 'Used (MB)',
-      undoStatusUsedPctLabel: 'Used %',
-      undoStatusTunedRetentionLabel: 'Tuned Undo Retention',
-      undoConfigStatusNote: '* Configuration from V$PARAMETER/DBA_TABLESPACES; tablespace usage from DBA_DATA_FILES/DBA_FREE_SPACE. Tuned Undo Retention (V$UNDOSTAT, most recent 10-minute interval) is what Oracle is actually achieving right now -- compare it against the configured Undo Retention above it.',
-      redoGroupHeader: 'GROUP#',
-      redoMembersHeader: 'MEMBERS',
-      redoSizeMbHeader: 'SIZE (MB)',
-      redoArchivedHeader: 'ARCHIVED',
-      redoFirstTimeHeader: 'FIRST_TIME',
-      redoLogEmpty: 'No redo log groups were found.',
-      redoLogNote: '* Sourced from V$LOG. ARCHIVED is only meaningful in ARCHIVELOG mode (see Archive Mode in Key Instance Parameters) -- in NOARCHIVELOG mode every group shows YES since nothing is pending archival.',
-      tableOwnersLoadFailedOption: 'Failed to load user list',
-      tableOwnersLoadFailedMsg: 'Failed to load user list: {msg}',
-      tableStatsNoTablesForOwner: 'There are no tables owned by user {owner}.',
-      tableRowTooltip: 'Right-click to run statistics collection.',
-      noCollectionHistory: 'No collection history',
-      tableStatsTruncatedNote: 'Showing the top 200 of {n} total, sorted by oldest statistics collection first.',
-      btnGatherSelected: '📊 Gather Statistics for Selected',
-      selectedCount: '{n} selected',
-      selectAllTitle: 'Select all',
-      tableNameHeader: 'Table Name',
-      partitionNameHeader: 'Partition Name',
-      tablespaceNameHeader: 'Tablespace Name',
-      numRowsHeader: 'Num Rows',
-      blocksHeader: 'Blocks',
-      chainCntHeader: 'Chain Cnt',
-      lastAnalyzedHeader: 'Last Analyzed',
-      tableStatsLoadFailedMsg: 'Failed to load table statistics: {msg}',
-      confirmGatherSingle: 'Gather statistics for table {label} now?\nThis may take some time depending on the table size.',
-      collectingLabel: '⏳ Collecting...',
-      requestStatsFailed: 'Failed to request statistics collection: {msg}',
-      btnRefreshList: '🔄 Refresh List',
-      confirmGatherBatch: 'Gather statistics for {label} now?\nThis runs one after another and may take some time depending on table sizes.',
-      nTablesLabel: '{n} tables',
-      collectingItemsLabel: '⏳ Collecting {n} item(s)...',
-      requestStatsFailedGeneric: 'Failed to request statistics collection.',
-      statsCompletedAll: 'Statistics collection completed for all {n} selected table(s).',
-      statsCompletedPartial: 'Statistics collection completed: {succeeded} succeeded, {failed} failed out of {total}.',
-      dbStatusLoadFailed: 'Failed to load DB status.',
-      sessionDetailTitleWithSid: 'Session Detail (SID: {sid})',
-      sessionNotFound: 'No session information found for that SID. (It may have already ended.)',
-      waitSessionDetailTitle: 'Wait Session Detail (gv$session)',
-      instIdHeader: 'Inst ID',
-      stateHeader: 'State',
-      secondsInWaitHeader: 'Seconds In Wait',
-      blockingInstHeader: 'Blocking Inst',
-      blockingSessionColHeader: 'Blocking Session',
-      p1p2NotFileBlock: 'The P1/P2 values don\'t look like file/block information, so the file/block object lookup was skipped. (P1: {p1}, P2: {p2})',
-      sessionDetailLoadFailed: 'Failed to load session detail: {msg}',
-      fileBlockLookupTitle: 'File/Block Object Lookup (FILE_NO: {file}, BLOCK_NO: {block})',
-      noObjectFound: 'No object found for that file/block.',
-      fileBlockLookupFailed: 'Failed to look up file/block object: {msg}',
-      segmentNameHeader: 'Segment Name',
-      segmentTypeHeader: 'Segment Type',
-      tablespaceNameHeader: 'Tablespace Name',
-      relativeFnoHeader: 'Relative Fno',
-      extentStartBlockHeader: 'Extent Start Block',
-      extentEndBlockHeader: 'Extent End Block',
-      blockOffsetHeader: 'Block Offset',
-      runningQueryTitleWithSid: 'Running Query (SID: {sid})',
-      sqlTextTitleWithId: 'SQL Text (SQL_ID: {sqlId})',
-      sqlTextNotCached: 'No cached SQL text was found for SQL_ID {sqlId}. (It may have aged out of the shared pool since the list was last refreshed -- try refreshing and viewing it again.)',
-      sqlIdTitle: 'SQL_ID: {id}',
-      labelParsingSchema: 'Parsing Schema',
-      labelExecutions: 'Executions',
-      labelElapsed: 'Elapsed',
-      labelCpu: 'CPU',
-      labelLastActive: 'Last Active',
-      secUnit: 'sec',
-      sqlSourceNote: '* Sourced from V$SQL (the shared pool\'s SQL cursor cache) -- this is the most recent cached text for this SQL_ID, up to 4000 characters.',
-      sqlTextLoadFailed: 'Failed to load SQL text: {msg}',
+  // Demo mode: flipped on by /api/version's demoMode flag (backed by a
+  // DEMO marker file only build-demo.ps1's packaging step drops next to
+  // the .exe -- see backend/core.py's IS_DEMO_MODE). false until that
+  // fetch resolves, so nothing is restricted for the brief moment before
+  // it's known either way. See applyDemoModeUi() below for what it turns off.
+  let isDemoMode = false;
+  const DEMO_DISABLED_TABS = ['recovery', 'tuning', 'objectview'];
 
-      sqlPlanSectionTitle: 'Execution Plan Analysis',
-      sqlFormattedTitle: 'Formatted SQL',
-      sqlPlanTitle: 'Execution Plan',
-      sqlPlanAnalysisTitle: 'Analysis',
-      sqlPlanNotCached: 'No cached execution plan was found for this SQL_ID. (Like the SQL text above, the plan is only available while the cursor is still in the shared pool.)',
-      sqlPlanLoadFailed: 'Failed to load the execution plan: {msg}',
-      sqlPlanNoFindings: 'No notable issues were found in this execution plan.',
-      sqlPlanNote: '* Sourced from V$SQL_PLAN (no EXPLAIN PLAN re-execution, no DBMS_XPLAN package needed) -- the plan currently cached for this cursor, indented by step depth.',
-      planColId: 'ID',
-      planColOperation: 'Operation',
-      planColObject: 'Object',
-      planColRows: 'Rows',
-      planColBytes: 'Bytes',
-      planColCost: 'Cost',
-      planColPredicate: 'Predicate',
-      planRuleFullTableScanTitle: 'Full Table Scan',
-      planRuleFullTableScanMsg: 'Step {id} does a full scan of {object} (~{rows} rows). If this table is filtered on a specific column, an index on that column may let Oracle avoid scanning the whole table.',
-      planRuleCartesianJoinTitle: 'Cartesian Join',
-      planRuleCartesianJoinMsg: 'Step {id} ({operation}) is a Cartesian join -- every row on one side is combined with every row on the other, with no join condition connecting them. This is almost always unintentional and can blow up the row count dramatically; check for a missing join predicate.',
-      planRuleNestedLoopLargeTitle: 'Large Nested Loop',
-      planRuleNestedLoopLargeMsg: 'Step {id} is a nested loop processing an estimated {rows} rows. Nested loops work best on a small driving row set; with this many rows, a hash join (or an index on the inner side) is often faster.',
-      planRuleLargeSortTitle: 'Large Sort',
-      planRuleLargeSortMsg: 'Step {id} ({operation} {options}) sorts an estimated {bytes}. A sort this size may spill from memory (PGA) to the TEMP tablespace; an index that already returns rows in the needed order can avoid the sort entirely.',
-      planRuleTopCostStepTitle: 'Dominant Cost Step',
-      planRuleTopCostStepMsg: 'Step {id} ({operation} on {object}) accounts for {pct}% of this plan\'s total estimated cost -- it\'s the step most worth investigating first.',
-      sidSerialTitle: 'SID {sid}, SERIAL# {serial}',
-      confirmKillSession: 'Kill session SID {sid}, SERIAL# {serial} now (IMMEDIATE)?\nThis forcibly terminates the session and rolls back any uncommitted work. This cannot be undone.',
-      killingLabel: '⏳ Killing...',
-      killSessionRequestFailed: 'Failed to request session kill: {msg}',
-      btnReport: 'Report',
-      reportFilenamePrompt: 'Enter a filename for the weekly DB health report:',
-      reportGeneratingLabel: '⏳ Generating...',
-      reportGeneratedToast: 'Report saved: {path}',
-      reportFailedToast: 'Failed to generate report: {msg}',
-      themeDark: '🌙 Dark',
-      themeLight: '☀️ Light'
+  const TABS = {
+    main: {
+      btn: document.getElementById('tabBtnMain'),
+      panel: document.getElementById('tabPanelMain')
+      // Main's data loads as part of the regular loadStatus()/auto-refresh cycle, not here.
     },
-    ko: {
-      appSubtitle: 'Oracle Database Monitoring(ODM)',
-      btnRefresh: '새로고침',
-      btnDisconnect: '연결 종료',
-      loadingLabel: '불러오는 중...',
-      demoDisabledTooltip: '데모 버전에서는 사용할 수 없습니다.',
-      tabMain: 'DashBoard',
-      tabOps: '운영',
-      tabRecovery: '복구',
-      tabTuning: '튜닝',
-      tabObjectView: 'Obj View/SQL',
-      tabHelp: '도움말',
-      cardHelp: '사용설명서',
-      helpSearchPlaceholder: '설명서 검색...',
-      helpSearchNoMatches: '검색 결과 없음',
-      helpSearchMatchCount: '{total}개 중 {current}번째',
-      cardInstance: '인스턴스 정보',
-      cardCombo: 'CPU / 메모리 사용량',
-      cardSessionList: '현재 세션 목록 (USER 세션만)',
-      cardBlocking: '블로킹 세션',
-      cardLongOps: '장시간 실행 세션',
-      cardWaitEvent: '대기 이벤트 Top 5',
-      cardTableStats: '테이블 통계정보 수집',
-      cardJobFailures: '스케줄러/작업 실패 이력',
-      cardAccountSecurity: '계정 보안',
-      cardAlertLog: '얼럿 로그 분석',
-      cardTempSpace: 'TEMP 테이블스페이스 사용량',
-      cardTempSession: '세션별 TEMP 사용량',
-      cardAutoextend: '데이터파일 자동확장 상태',
-      cardRecoveryDest: 'Fast Recovery Area (개요)',
-      cardRecoveryType: '파일 유형별 FRA 사용량',
-      cardRecentDml: '최근 DML (Top 50, 최신순)',
-      cardObjectView: '오브젝트 뷰',
-      objectViewFilterPlaceholder: '필터할 텍스트 입력...',
-      objectViewSelectPrompt: '사용자를 선택하면 해당 계정의 오브젝트를 탐색할 수 있습니다.',
-      objectViewNoSelection: '왼쪽에서 오브젝트를 선택하면 스크립트가 표시됩니다.',
-      objectViewFooterNote: '* 오브젝트 뷰는 15초 자동 새로고침 대상이 아닙니다.',
-      objectViewNoObjectsForOwner: '{owner} 계정에서 오브젝트를 찾을 수 없습니다.',
-      objectViewTruncatedNote: '전체 {n}건 중 상위 3000건만 표시합니다.',
-      objectViewLoadFailedMsg: '오브젝트 목록 조회 실패: {msg}',
-      objectViewNoMatch: '필터 조건에 맞는 오브젝트가 없습니다.',
-      objectViewDdlLoadFailed: '스크립트 조회 실패: {msg}',
-      cardSqlRunner: 'SQL 쿼리 실행기',
-      cardTopQueries: '실행시간 상위 5개 쿼리',
-      cardTopQueriesCpu: 'CPU 시간 상위 5개 쿼리',
-      cardTopQueriesGets: 'Buffer Gets 상위 5개 쿼리',
-      cardInstanceEfficiency: '인스턴스 효율성 지표',
-      cardLoadProfile: '로드 프로파일 (기동 이후 초당 평균)',
-      cardTablespaceIo: '테이블스페이스 I/O 통계',
-      cardKeyParams: '주요 인스턴스 파라미터',
-      cardUndoConfig: 'Undo 설정 및 상태',
-      cardRedoLog: 'Redo Log 상태',
-      mainFooterNote: '* 계정에 권한이 없는 항목은 "이 항목을 볼 권한이 없습니다." 메시지가 표시될 수 있습니다.<br>화면은 15초마다 자동으로 새로고침됩니다. 30분간 활동이 없으면 세션이 만료되어 다시 로그인해야 합니다.',
-      opsFooterNote: '* 운영 탭 데이터는 15초 자동 새로고침 대상이 아닙니다 -- 위의 새로고침 버튼을 눌러 갱신하세요.',
-      recoveryFooterNote: '* 복구 영역 사용량은 15초 자동 새로고침 대상이 아닙니다 -- 위의 새로고침 버튼을 눌러 갱신하세요.',
-      cardTuning: '튜닝 어드바이저',
-      btnRunCheck: '점검 실행',
-      tuningIdlePrompt: '불러오는 중...',
-      tuningFooterNote: '* 라이선스가 필요 없는 뷰만 사용합니다 (V$SYSSTAT, V$LIBRARYCACHE, V$SYSTEM_EVENT, V$SQL, DBA_DATA_FILES, DBA_FREE_SPACE, DBA_OBJECTS, V$SESSION) -- Diagnostics/Tuning Pack 라이선스 없이 모든 에디션/버전에서 동작합니다. 증가율 기반 점검(히트율, 파싱, 대기 이벤트)은 직전 점검과 비교하므로, 해당 DB에 대한 최초 점검에서는 "아직 비교 데이터가 없음"으로 표시될 수 있습니다.',
-      tuningSevCritical: 'CRITICAL',
-      tuningSevWarning: 'WARNING',
-      tuningSevInfo: 'INFO',
-      tuningCatMemory: '메모리',
-      tuningCatSql: 'SQL',
-      tuningCatStorage: '스토리지',
-      tuningCatObject: '오브젝트',
-      tuningCatLock: '락',
-      tuningCatWaitEvent: '대기 이벤트',
-      tuningCheckedAt: '{time} 기준',
-      tuningIntervalNote: '{sec}초 전과 비교',
-      tuningNoIssues: '✓ 특이사항이 발견되지 않았습니다 -- 현재 엔진 상태는 양호합니다.',
-      tuningInsufficientHistoryNote: '일부 증가율 기반 점검(히트율, 파싱, 대기 이벤트)은 아직 비교할 데이터가 없습니다 -- 잠시 후 다시 점검하면 표시됩니다.',
-      tuningLoadFailedMsg: '튜닝 점검 실패: {msg}',
-      tuningTitleBufferCacheHitRatio: '버퍼 캐시 히트율',
-      tuningMsgBufferCacheHitRatio: '{value}% (권장: 90% 이상). 버퍼 캐시(SGA) 크기를 늘리거나 불필요한 풀 테이블 스캔을 줄이는 것을 검토하세요.',
-      tuningTitleLibraryCacheHitRatio: '라이브러리 캐시 히트율',
-      tuningMsgLibraryCacheHitRatio: '{value}% (권장: 99% 이상). 바인드 변수 사용 여부와 shared pool 크기를 점검하세요.',
-      tuningTitleHardParseRatio: '하드파싱 비율',
-      tuningMsgHardParseRatio: '전체 파싱 중 {value}%가 하드파싱입니다 (권장: 10% 미만). 바인드 변수 없이 리터럴 SQL을 사용하는 경우에 흔히 발생합니다.',
-      tuningTitleDiskSort: '디스크 정렬 발생',
-      tuningMsgDiskSort: '직전 점검 이후 {count}건의 디스크 정렬이 발생했습니다. PGA/정렬 영역 크기를 늘리거나 원인 쿼리를 튜닝하는 것을 검토하세요.',
-      tuningTitleWaitEvent: '상위 대기 이벤트',
-      tuningColIncrease: '증가량',
-      tuningColHint: '힌트',
-      tuningTitleTablespaceUsage: '테이블스페이스 사용률',
-      tuningMsgTablespaceUsageGeneric: '다음 테이블스페이스의 여유 공간이 부족합니다 (권장: 사용률 90% 미만). 데이터파일 추가나 불필요한 데이터 정리를 검토하세요.',
-      tuningColTablespace: '테이블스페이스',
-      tuningColUsage: '사용률',
-      tuningTitleInvalidObjects: 'Invalid 객체 발견 ({count}건)',
-      tuningMsgInvalidObjectsGeneric: 'UTL_RECOMP 등으로 재컴파일하세요.',
-      tuningTruncatedNote: '전체 {n}건 중 상위 50건을 표시합니다.',
-      tuningTitleBlockingSession: '세션 블로킹 발생 중 ({count}건)',
-      tuningMsgBlockingSessionGeneric: '장시간 미커밋 트랜잭션을 확인하고, 필요 시 블로킹 세션 종료를 검토하세요.',
-      tuningColWaiter: '대기 세션 (SID / 사용자)',
-      tuningColBlocker: '차단 세션 (SID / 사용자)',
-      tuningTitleSlowSql: '느린 SQL',
-      tuningColAvgElapsed: '평균 실행시간',
-      wait_hint_seq_read: '주로 인덱스를 통한 단일 블록 I/O입니다. 인덱스 설계와 스토리지 I/O 성능을 점검하세요.',
-      wait_hint_scattered_read: '주로 풀 테이블/인덱스 스캔입니다. 인덱스 누락이나 오래된 통계정보를 확인하세요.',
-      wait_hint_log_file_sync: '커밋 시 REDO 로그 기록을 기다립니다. 커밋 빈도를 줄이거나 REDO 로그 I/O 성능을 점검하세요.',
-      wait_hint_log_file_parallel_write: 'REDO 로그 파일 쓰기를 기다립니다. REDO 로그가 위치한 디스크의 I/O 성능을 점검하세요.',
-      wait_hint_buffer_busy: '동일 블록에 대한 동시 접근입니다. 핫 블록 여부와 freelist/ITL 설정을 확인하세요.',
-      wait_hint_latch_free: '공유 자원에 대한 래치 경합입니다. SQL 튜닝이 필요할 수 있습니다.',
-      wait_hint_direct_path: '다이렉트 경로 I/O로, 주로 병렬 처리나 대용량 정렬/조인에서 발생합니다. 병렬도와 PGA 설정을 점검하세요.',
-      wait_hint_row_lock: '행 단위 락 경합입니다. 장시간 커밋되지 않는 트랜잭션이 있는지 확인하세요.',
-      wait_hint_free_buffer: '여유 버퍼를 기다리고 있습니다. DBWR 처리 속도가 부족하거나 버퍼 캐시가 작을 수 있습니다.',
-      wait_hint_default: '이 대기 이벤트와 관련된 세션과 SQL을 점검하세요.',
-      sqlRunnerFooterNote: '* 이 앱은 SYSTEM 계정으로 접속하므로, 실수로 입력한 쿼리가 인스턴스 전체에 영향을 주지 않도록 여기서는 SELECT문만 허용되며 DML/DDL은 실행할 수 없습니다. DATE/TIMESTAMP 컬럼은 YYYY-MM-DD HH24:MI:SS 형식으로 표시됩니다. 실행 결과는 새로 쿼리를 실행하기 전까지 화면에 그대로 유지됩니다.',
-      sqlRunnerPlaceholder: 'SELECT * FROM v$version',
-      btnRunQuery: '▶ 실행',
-      btnClear: '지우기',
-      sqlRunnerHint: 'SELECT문만 가능하며, 한 번에 하나의 문장만 실행할 수 있습니다. 결과는 최대 200행까지 표시됩니다.',
-      sqlRunnerIdle: '위에 SELECT 쿼리를 입력하고 실행 버튼을 누르세요.',
-      sqlRunnerRunningLabel: '⏳ 실행 중...',
-      sqlRunnerEmptyInput: '실행할 쿼리를 입력해 주세요.',
-      sqlRunnerNoColumns: '쿼리 결과에 컬럼이 없습니다.',
-      sqlRunnerNoRows: '쿼리는 정상적으로 실행되었지만 결과 행이 없습니다.',
-      sqlRunnerRowCount: '{n}건의 결과가 반환되었습니다.',
-      sqlRunnerCapNote: '* 결과는 최대 200행까지 표시됩니다. 더 큰 결과 집합을 좁히려면 직접 FETCH FIRST/WHERE 조건을 추가하세요.',
-      btnCancelQuery: '취소',
-      sqlRunnerCancelled: '쿼리가 취소되었습니다.',
-      sqlRunnerCancelRequested: '취소를 요청했습니다 -- 쿼리가 중단되기를 기다리는 중입니다.',
-      sqlRunnerCancelFailed: '취소에 실패했습니다: {msg}',
-      sessionDetailDefaultTitle: '세션 상세정보',
-      ctxMenuTitleTable: '테이블',
-      ctxMenuTitleSession: '세션',
-      btnGatherStats: '📊 통계정보 수집',
-      btnViewTableProperties: '🔍 테이블 속성 보기',
-      viewRunningQuery: '🔍 실행 중인 쿼리 보기',
-      viewRunningQueryDisabled: '🔍 실행 중인 쿼리 보기 (활성 SQL 없음)',
-      killSessionImmediate: '🛑 세션 종료 (즉시)',
-      tablePropertiesTitleWithName: '테이블 속성 ({name})',
-      tablePropertiesNotFound: '테이블을 찾을 수 없습니다 (삭제되었거나 DBA_TABLES 조회 권한이 없을 수 있습니다).',
-      tablePropertiesBasicInfoTitle: '기본 정보',
-      tablePropertiesColumnsTitle: '컬럼',
-      tablePropertiesIndexesTitle: '인덱스',
-      tablePropertiesPartitioned: '파티션 여부',
-      tablePropertiesAvgRowLen: '평균 행 길이',
-      tablePropertiesLogging: '로깅',
-      tablePropertiesCompression: '압축',
-      tablePropertiesDegree: '병렬도',
-      tablePropertiesNoColumns: '컬럼이 없습니다.',
-      tablePropertiesNoIndexes: '이 테이블에는 인덱스가 없습니다.',
-      tablePropertiesColumnName: '컬럼명',
-      tablePropertiesDataType: '데이터 타입',
-      tablePropertiesNullable: 'NULL 허용',
-      tablePropertiesIndexName: '인덱스명',
-      tablePropertiesUniqueness: '유일성',
-      tablePropertiesIndexColumns: '컬럼',
-      tablePropertiesLoadFailed: '테이블 속성 조회 실패: {msg}',
-      notNullLabel: 'NOT NULL',
-      nullableLabel: 'Y',
-      btnReset: '초기화',
-      dragHandleTitle: '드래그하여 순서 변경 또는 다른 탭으로 이동',
-      selectUserPlaceholder: '사용자 선택',
-      tableStatsSelectPrompt: '사용자를 선택하면 테이블별 통계정보 수집 현황을 볼 수 있습니다 (오래된 통계 순으로 정렬).',
-      filterLabelStatus: '상태',
-      filterLabelMachine: '머신',
-      filterLabelProgram: '프로그램',
-      filterLabelType: '유형',
-      filterLabelSchema: '스키마',
-      filterAllOption: '{label}: 전체',
-      instanceNameLabel: '인스턴스 이름',
-      statusLabel: '상태',
-      hostLabel: '호스트',
-      versionLabel: '버전',
-      startupTimeLabel: '시작 시각',
-      uptimeLabel: '가동 시간',
-      sessionCountConnected: '{n}개 접속 중',
-      sessionCountNoPermission: '볼 권한 없음',
-      sessionCountTooltip: '백그라운드 프로세스를 제외한 순수 사용자 세션 수 (v$session, type=USER)',
-      comboCpuLabel: 'CPU 사용률',
-      comboMemLabel: '메모리 사용량',
-      comboCpuUtilLabel: '호스트 CPU 사용률 (v$sysmetric)',
-      comboMemUnknownPct: 'SGA {sga} MB + PGA {pga} MB (설정된 메모리 한도를 확인할 수 없어 사용률(%)은 표시하지 않습니다)',
-      comboMemWithPct: '사용 {used} MB (SGA {sga} + PGA {pga}) / 목표 {target} MB',
-      sessionListEmpty: '현재 조회되는 USER 세션이 없습니다.',
-      sessionListNoMatch: '필터 조건에 맞는 세션이 없습니다.',
-      sessionRowTooltip: '클릭하면 대기 상세정보를 볼 수 있습니다. 우클릭(또는 길게 누르기)하면 실행 쿼리 보기 / 세션 종료 메뉴가 나옵니다.',
-      statusHeader: '상태',
-      machineHeader: '머신',
-      programHeader: '프로그램',
-      logonTimeHeader: '로그인 시간',
-      filteredCount: '필터됨: {n} / 전체: {m}',
-      sessionListTruncatedNote: '세션이 많아 상위 50개만 표시하며, ACTIVE 세션 우선, 그다음 로그인 시간이 오래된 순으로 정렬됩니다.',
-      blockingEmpty: '현재 다른 세션을 블로킹하는 세션이 없습니다.',
-      waitingSessionHeader: '대기 세션 (SID/SERIAL#)',
-      waitingUserHeader: '대기 사용자',
-      waitingMachineHeader: '대기 머신',
-      blockingSessionParenHeader: '블로킹 세션 (SID/SERIAL#)',
-      blockingUserHeader: '블로킹 사용자',
-      waitClassHeader: '대기 클래스',
-      waitTimeHeader: '대기 시간',
-      longOpsEmpty: '현재 장시간 실행 중인 작업이 없습니다 (풀스캔, 백업, 인덱스 생성 등).',
-      longOpsElapsedRemaining: '경과 {elapsed} · 예상 남은 시간 {remaining}',
-      waitEventsEmpty: '대기 이벤트가 없습니다.',
-      eventHeader: '이벤트',
-      totalWaitsHeader: '총 대기 횟수',
-      totalWaitTimeHeader: '총 대기 시간',
-      averageWaitTimeHeader: '평균 대기 시간',
-      waitEventsNote: '* 인스턴스 시작 이후 누적값입니다 (v$system_event).',
-      ownerHeader: '소유자',
-      objectNameHeader: '객체 이름',
-      typeHeader: '유형',
-      lastDdlTimeHeader: '마지막 DDL 시각',
-      jobFailuresLoadFailed: '스케줄러/작업 실패 이력을 불러오지 못했습니다.',
-      jobFailuresNoMatch: '필터 조건에 맞는 실패 이력이 없습니다.',
-      schedulerFailuresTitle: 'DBMS_SCHEDULER 실패 이력',
-      schedulerFailuresEmpty: '최근 {days}일간 실패하거나 중단된 DBMS_SCHEDULER 작업이 없습니다.',
-      legacyJobsTitle: 'Legacy DBMS_JOB (DBA_JOBS)',
-      legacyJobsEmpty: '문제가 있는(BROKEN 또는 실패 이력이 있는) Legacy DBMS_JOB 작업이 없습니다.',
-      jobFailuresNote: '* DBMS_SCHEDULER 실패 이력은 DBA_SCHEDULER_JOB_RUN_DETAILS 기준이며(SUCCEEDED가 아닌 모든 결과, 최근 {days}일), 실제 조회 가능한 기간은 각 JOB_CLASS에 설정된 log_history 보관 기간에 따라 달라질 수 있습니다. Legacy DBMS_JOB 항목은 DBA_JOBS 기준이며, 이 예전 방식은 실행별 이력을 남기지 않으므로 이력이 아닌 현재 시점의 스냅샷입니다(BROKEN이거나 실패 횟수가 0보다 큰 작업).',
-      jobNameHeader: '작업 이름',
-      errorCodeHeader: 'Error#',
-      durationSecHeader: '소요시간(초)',
-      jobIdHeader: 'Job',
-      brokenHeader: 'Broken',
-      failuresHeader: '실패 횟수',
-      lastRunHeader: '마지막 실행',
-      nextRunHeader: '다음 실행',
-      whatHeader: '실행 내용',
-      accountSecurityLoadFailed: '계정 보안 상태를 불러오지 못했습니다.',
-      lockedAccountsTitle: '잠긴 계정',
-      lockedAccountsEmpty: '잠긴 계정이 없습니다.',
-      expiringPasswordsTitle: '비밀번호 만료 임박/만료',
-      expiringPasswordsEmpty: '{days}일 이내 만료 예정이거나 이미 만료된 비밀번호를 가진 계정이 없습니다.',
-      accountSecurityNote: '* 두 섹션 모두 DBA_USERS 기준입니다. 잠긴 계정에는 수동으로 잠근 계정과 로그인 실패 횟수 초과로 자동 잠긴 계정이 포함됩니다. 비밀번호 만료 임박/만료는 EXPIRY_DATE가 향후 {days}일 이내이거나 이미 지난 계정 목록이며, 비밀번호 만료가 아예 없는(PASSWORD_LIFE_TIME이 UNLIMITED인 프로파일) 계정은 포함되지 않습니다.',
-      accountStatusHeader: '계정 상태',
-      profileHeader: '프로파일',
-      lockDateHeader: '잠긴 날짜',
-      expiryDateHeader: '만료일',
-      daysUntilExpiryHeader: '만료까지 남은 일수',
-      alertSevIncident: '장애/오류',
-      alertSevError: '오류',
-      alertSevWarning: '경고',
-      alertSevNotice: '알림',
-      alertLogLoadFailed: '얼럿 로그를 불러오지 못했습니다.',
-      alertLogEmpty: '최근 {days}일간 얼럿 로그에서 오류나 경고가 발견되지 않았습니다.',
-      timeHeader: '시각',
-      severityHeader: '심각도',
-      messageHeader: '메시지',
-      alertLogNote: '* V$DIAG_ALERT_EXT에서 조회하며, 최근 {days}일 내 ORA- 오류 코드가 있거나 오류/장애로 분류된 항목 중 최신 30건까지 표시합니다 (최신순).',
-      networkError: '서버와 통신할 수 없습니다: {msg}',
-      tempSpaceLoadFailed: 'TEMP 테이블스페이스 사용량을 불러오지 못했습니다.',
-      tempSpaceEmpty: 'TEMP 테이블스페이스가 없습니다.',
-      tablespaceHeader: '테이블스페이스',
-      usedHeader: '사용량',
-      freeHeader: '여유 공간',
-      totalHeader: '전체',
-      usedPctHeader: '사용률',
-      tempSpaceNote: '* V$TEMP_SPACE_HEADER 기준(할당된 TEMP 공간)이며, 세션이 실제로 사용 중인 양과는 다릅니다 -- 아래 "세션별 TEMP 사용량" 카드를 참고하세요.',
-      tempSessionLoadFailed: '세션별 TEMP 사용량을 불러오지 못했습니다.',
-      tempSessionEmpty: '현재 TEMP 공간을 사용 중인 세션이 없습니다.',
-      usernameHeader: '사용자',
-      tempUsedHeader: 'TEMP 사용량',
-      tempSessionNote: '* V$TEMP_SPACE_HEADER와 V$TEMPSEG_USAGE를 조인한 결과이며, TEMP 사용량이 큰 순서로 정렬됩니다.',
-      autoextendLoadFailed: '데이터파일 자동확장 상태를 불러오지 못했습니다.',
-      autoextendEmpty: '데이터파일이 없습니다.',
-      autoextensibleHeader: '자동확장',
-      currentSizeHeader: '현재 크기',
-      maxSizeHeader: '최대 크기',
-      usedPctOfMaxHeader: '최대 대비 사용률',
-      autoextendNote: '* DBA_DATA_FILES 기준이며, MAXSIZE에 가까운 데이터파일부터 정렬됩니다 (자동확장이 꺼져 있는 데이터파일은 접근할 한계치 자체가 없으므로 맨 뒤에 표시되지만, 테이블스페이스가 가득 차면 ORA-01653 오류로 바로 실패합니다). 상위 20개까지 표시합니다.',
-      recoveryDestLoadFailed: 'Fast Recovery Area 사용량을 불러오지 못했습니다.',
-      recoveryDestEmpty: 'Fast Recovery Area가 설정되어 있지 않습니다 (DB_RECOVERY_FILE_DEST 미설정).',
-      destinationHeader: '대상 위치',
-      spaceLimitHeader: '공간 한도',
-      reclaimableHeader: '재사용 가능',
-      filesHeader: '파일 수',
-      usedPctNetHeader: '사용률 (재사용 가능분 제외)',
-      recoveryDestNote: '* V$RECOVERY_FILE_DEST 기준입니다. "사용률 (재사용 가능분 제외)"은 Oracle이 자동으로 회수 가능한 공간(예: 이미 백업된 아카이브 로그)을 제외한 값으로, 실제 압박 정도를 더 정확히 보여줍니다.',
-      recoveryTypeLoadFailed: '파일 유형별 FRA 사용량을 불러오지 못했습니다.',
-      recoveryTypeEmpty: 'FRA 사용량 세부 내역이 없습니다.',
-      fileTypeHeader: '파일 유형',
-      pctSpaceUsedHeader: '사용률',
-      pctReclaimableHeader: '재사용 가능률',
-      recoveryTypeNote: '* V$FLASH_RECOVERY_AREA_USAGE 기준이며, 사용량이 큰 순서로 정렬됩니다. 비율은 전체 FRA 크기 대비 값이며, 항목 간 비율 합이 아닙니다.',
-      dmlLoadFailed: '최근 DML을 불러오지 못했습니다.',
-      dmlEmptyPool: '공유 풀에 캐시된 DML(INSERT/UPDATE/DELETE/MERGE) 문이 없습니다.',
-      dmlNoMatch: '필터 조건에 맞는 DML 문이 없습니다.',
-      schemaHeader: '스키마',
-      executionsHeader: '실행 횟수',
-      lastActiveHeader: '최근 실행',
-      sqlTextHeader: 'SQL 텍스트',
-      sqlTextPreviewTooltip: '클릭하면 전체 SQL 텍스트를 볼 수 있습니다',
-      sqlTextEmptyPlaceholder: '(내용 없음)',
-      dmlNote: '* V$SQL(COMMAND_TYPE = INSERT/UPDATE/DELETE/MERGE) 기준이며, 최근 실행순(LAST_ACTIVE_TIME) 상위 50건입니다. SQL 텍스트를 클릭하면 전체 내용을 볼 수 있습니다.',
-      recoveryUsageLoadFailed: '복구 영역 사용량을 불러오지 못했습니다.',
-      opsUsageLoadFailed: '운영 탭 데이터를 불러오지 못했습니다.',
-      topQueriesEmpty: '해당 기준으로 공유 풀에서 조회된 SQL 문이 없습니다.',
-      rankHeader: '#',
-      elapsedTimeHeader: '경과 시간',
-      cpuTimeHeader: 'CPU 시간',
-      bufferGetsHeader: 'Buffer Gets',
-      topQueriesNote: '* V$SQL 기준이며, 해당 SQL이 공유 풀에 올라온 이후 누적된 ELAPSED_TIME(단일 실행 시간이 아님) 기준 상위 5건입니다. SYS/SYSTEM 등 Oracle 내부 계정은 제외되고 실제 User 계정으로 실행된 SQL만 표시됩니다. SQL_ID를 클릭하면 전체 쿼리, 정리된 SQL, 실행계획 분석을 볼 수 있습니다.',
-      topQueriesCpuNote: '* V$SQL 기준이며, 해당 SQL이 공유 풀에 올라온 이후 누적된 CPU_TIME(단일 실행 시간이 아님) 기준 상위 5건입니다. SYS/SYSTEM 등 Oracle 내부 계정은 제외되고 실제 User 계정으로 실행된 SQL만 표시됩니다. SQL_ID를 클릭하면 전체 쿼리, 정리된 SQL, 실행계획 분석을 볼 수 있습니다.',
-      topQueriesGetsNote: '* V$SQL 기준이며, 해당 SQL이 공유 풀에 올라온 이후 누적된 BUFFER_GETS(논리적 읽기) 기준 상위 5건입니다. SYS/SYSTEM 등 Oracle 내부 계정은 제외되고 실제 User 계정으로 실행된 SQL만 표시됩니다. SQL_ID를 클릭하면 전체 쿼리, 정리된 SQL, 실행계획 분석을 볼 수 있습니다.',
-      bufferHitRatioLabel: 'Buffer Cache Hit Ratio',
-      libraryHitRatioLabel: 'Library Cache Hit Ratio',
-      softParsePctLabel: 'Soft Parse %',
-      executeToParsePctLabel: 'Execute to Parse %',
-      instanceEfficiencyNote: '* AWR의 "Instance Efficiency Percentages" 표준 계산식을 기반으로 하며, V$SYSSTAT/V$LIBRARYCACHE 값을 인스턴스 기동 이후 누적치로 계산합니다 (스냅샷 구간 델타값이 아닙니다).',
-      loadProfileRedoLabel: 'Redo Size (bytes/sec)',
-      loadProfileLogicalReadsLabel: 'Logical Reads (blocks/sec)',
-      loadProfilePhysicalReadsLabel: 'Physical Reads (blocks/sec)',
-      loadProfileUserCallsLabel: 'User Calls (calls/sec)',
-      loadProfileExecutesLabel: 'Executes (calls/sec)',
-      loadProfileTransactionsLabel: 'Transactions (tx/sec)',
-      loadProfileNote: '* AWR의 Load Profile은 스냅샷 구간 평균이지만, 이 값들은 인스턴스 기동 이후 전체 기간의 평균이라 최근의 순간적인 부하 증가/감소는 완만하게 나타납니다.',
-      fileNameHeader: '데이터 파일',
-      physicalReadsHeader: '물리적 읽기',
-      physicalWritesHeader: '물리적 쓰기',
-      avgReadTimeHeader: '평균 읽기 시간 (ms)',
-      avgWriteTimeHeader: '평균 쓰기 시간 (ms)',
-      tablespaceIoEmpty: '테이블스페이스 I/O 통계가 없습니다.',
-      tablespaceIoNote: '* V$FILESTAT(데이터 파일 단위) 기준이며, 총 I/O(읽기+쓰기)가 많은 순서로 상위 10건입니다. 평균 읽기/쓰기 시간의 단위는 밀리초(ms)입니다.',
-      keyParamPasswordLifeTime: '비밀번호 유효기간 (일)',
-      keyParamSpfile: 'SPFILE 사용 여부',
-      keyParamSpfileYes: '사용',
-      keyParamSpfileNo: '미사용 (PFILE)',
-      keyParamAuditTrail: 'AUDIT_TRAIL',
-      keyParamProcesses: 'PROCESSES',
-      keyParamSessions: 'SESSIONS',
-      keyParamOpenCursors: 'OPEN_CURSORS',
-      keyParamDbFiles: 'DB_FILES',
-      keyParamUndoRetention: 'UNDO_RETENTION',
-      keyParamOptimizerMode: 'OPTIMIZER_MODE',
-      keyParamLogBuffer: 'LOG_BUFFER',
-      keyParamArchiveMode: 'ARCHIVE MODE',
-      keyParamsNote: '* V$PARAMETER / V$DATABASE / DBA_PROFILES(DEFAULT 프로파일) 기준이며, 세션별로 재정의된 값이 아닌 인스턴스/데이터베이스 레벨 값입니다.',
-      undoManagementLabel: 'Undo Management',
-      undoTablespaceLabel: 'Undo Tablespace',
-      undoConfigRetentionLabel: 'Undo Retention',
-      undoConfigGuaranteeLabel: 'Retention Guarantee',
-      undoStatusTotalLabel: '테이블스페이스 크기 (MB)',
-      undoStatusUsedLabel: '사용량 (MB)',
-      undoStatusUsedPctLabel: '사용률 (%)',
-      undoStatusTunedRetentionLabel: 'Tuned Undo Retention',
-      undoConfigStatusNote: '* 설정 항목은 V$PARAMETER/DBA_TABLESPACES, 테이블스페이스 사용량은 DBA_DATA_FILES/DBA_FREE_SPACE 기준입니다. Tuned Undo Retention(V$UNDOSTAT, 가장 최근 10분 구간)은 현재 실제로 유지되고 있는 undo 보관 시간이며, 위의 설정된 Undo Retention과 비교해 보면 됩니다.',
-      redoGroupHeader: 'GROUP#',
-      redoMembersHeader: 'MEMBERS',
-      redoSizeMbHeader: 'SIZE (MB)',
-      redoArchivedHeader: 'ARCHIVED',
-      redoFirstTimeHeader: 'FIRST_TIME',
-      redoLogEmpty: '조회된 Redo Log 그룹이 없습니다.',
-      redoLogNote: '* V$LOG 기준입니다. ARCHIVED는 ARCHIVELOG 모드에서만 의미가 있습니다(주요 인스턴스 파라미터의 Archive Mode 참고) -- NOARCHIVELOG 모드에서는 보관할 대상이 없어 모든 그룹이 YES로 표시됩니다.',
-      tableOwnersLoadFailedOption: '사용자 목록을 불러오지 못했습니다',
-      tableOwnersLoadFailedMsg: '사용자 목록을 불러오지 못했습니다: {msg}',
-      tableStatsNoTablesForOwner: '사용자 {owner}가 소유한 테이블이 없습니다.',
-      tableRowTooltip: '우클릭하면 통계정보 수집을 실행할 수 있습니다.',
-      noCollectionHistory: '수집 이력 없음',
-      tableStatsTruncatedNote: '전체 {n}건 중 통계정보가 오래된 순으로 상위 200건을 표시합니다.',
-      btnGatherSelected: '📊 선택 항목 통계정보 수집',
-      selectedCount: '{n}개 선택됨',
-      selectAllTitle: '전체 선택',
-      tableNameHeader: '테이블 이름',
-      partitionNameHeader: '파티션 이름',
-      tablespaceNameHeader: '테이블스페이스 이름',
-      numRowsHeader: '행 수',
-      blocksHeader: '블록 수',
-      chainCntHeader: '체인 카운트',
-      lastAnalyzedHeader: '마지막 분석 시각',
-      tableStatsLoadFailedMsg: '테이블 통계정보를 불러오지 못했습니다: {msg}',
-      confirmGatherSingle: '테이블 {label}의 통계정보를 지금 수집할까요?\n테이블 크기에 따라 시간이 걸릴 수 있습니다.',
-      collectingLabel: '⏳ 수집 중...',
-      requestStatsFailed: '통계정보 수집 요청에 실패했습니다: {msg}',
-      btnRefreshList: '🔄 목록 새로고침',
-      confirmGatherBatch: '{label}의 통계정보를 지금 수집할까요?\n순차적으로 실행되며 테이블 크기에 따라 시간이 걸릴 수 있습니다.',
-      nTablesLabel: '테이블 {n}개',
-      collectingItemsLabel: '⏳ {n}건 수집 중...',
-      requestStatsFailedGeneric: '통계정보 수집 요청에 실패했습니다.',
-      statsCompletedAll: '선택한 테이블 {n}개 전부 통계정보 수집이 완료되었습니다.',
-      statsCompletedPartial: '통계정보 수집 완료: 전체 {total}건 중 성공 {succeeded}건, 실패 {failed}건.',
-      dbStatusLoadFailed: 'DB 상태를 불러오지 못했습니다.',
-      sessionDetailTitleWithSid: '세션 상세정보 (SID: {sid})',
-      sessionNotFound: '해당 SID의 세션 정보를 찾을 수 없습니다. (이미 종료되었을 수 있습니다.)',
-      waitSessionDetailTitle: '대기 세션 상세정보 (gv$session)',
-      instIdHeader: '인스턴스 ID',
-      stateHeader: '상태',
-      secondsInWaitHeader: '대기 시간(초)',
-      blockingInstHeader: '블로킹 인스턴스',
-      blockingSessionColHeader: '블로킹 세션',
-      p1p2NotFileBlock: 'P1/P2 값이 파일/블록 정보로 보이지 않아 파일/블록 객체 조회를 건너뛰었습니다. (P1: {p1}, P2: {p2})',
-      sessionDetailLoadFailed: '세션 상세정보를 불러오지 못했습니다: {msg}',
-      fileBlockLookupTitle: '파일/블록 객체 조회 (FILE_NO: {file}, BLOCK_NO: {block})',
-      noObjectFound: '해당 파일/블록에 대한 객체를 찾을 수 없습니다.',
-      fileBlockLookupFailed: '파일/블록 객체 조회에 실패했습니다: {msg}',
-      segmentNameHeader: '세그먼트 이름',
-      segmentTypeHeader: '세그먼트 유형',
-      tablespaceNameHeader: 'Tablespace Name',
-      relativeFnoHeader: 'Relative Fno',
-      extentStartBlockHeader: 'Extent Start Block',
-      extentEndBlockHeader: 'Extent End Block',
-      blockOffsetHeader: 'Block Offset',
-      runningQueryTitleWithSid: '실행 중인 쿼리 (SID: {sid})',
-      sqlTextTitleWithId: 'SQL 텍스트 (SQL_ID: {sqlId})',
-      sqlTextNotCached: 'SQL_ID {sqlId}에 대한 캐시된 SQL 텍스트를 찾을 수 없습니다. (목록을 마지막으로 새로고침한 이후 공유 풀에서 제거되었을 수 있습니다 -- 새로고침 후 다시 시도해보세요.)',
-      sqlIdTitle: 'SQL_ID: {id}',
-      labelParsingSchema: '파싱 스키마',
-      labelExecutions: '실행 횟수',
-      labelElapsed: '경과 시간',
-      labelCpu: 'CPU 시간',
-      labelLastActive: '최근 실행',
-      secUnit: '초',
-      sqlSourceNote: '* V$SQL(공유 풀의 SQL 커서 캐시) 기준이며, 이 SQL_ID에 대해 캐시된 가장 최신 텍스트로 최대 4000자까지 표시됩니다.',
-      sqlTextLoadFailed: 'SQL 텍스트를 불러오지 못했습니다: {msg}',
-
-      sqlPlanSectionTitle: '실행계획 분석',
-      sqlFormattedTitle: '정리된 SQL',
-      sqlPlanTitle: '실행 계획',
-      sqlPlanAnalysisTitle: '분석',
-      sqlPlanNotCached: '이 SQL_ID에 대한 캐시된 실행계획을 찾을 수 없습니다. (위 SQL 텍스트와 마찬가지로, 커서가 공유 풀에 남아있는 동안에만 조회할 수 있습니다.)',
-      sqlPlanLoadFailed: '실행계획을 불러오지 못했습니다: {msg}',
-      sqlPlanNoFindings: '이 실행계획에서 특별히 지적할 만한 문제는 발견되지 않았습니다.',
-      sqlPlanNote: '* V$SQL_PLAN 기준이며(EXPLAIN PLAN 재실행이나 DBMS_XPLAN 패키지 권한 불필요), 이 커서에 현재 캐시된 실행계획을 단계 깊이만큼 들여써서 표시합니다.',
-      planColId: 'ID',
-      planColOperation: 'Operation',
-      planColObject: 'Object',
-      planColRows: 'Rows',
-      planColBytes: 'Bytes',
-      planColCost: 'Cost',
-      planColPredicate: 'Predicate',
-      planRuleFullTableScanTitle: 'Full Table Scan',
-      planRuleFullTableScanMsg: '{id}번 단계가 {object}를 전체 스캔합니다(약 {rows}건 예상). 특정 컬럼으로 필터링하는 쿼리라면 그 컬럼에 인덱스를 추가하면 전체 스캔을 피할 수 있습니다.',
-      planRuleCartesianJoinTitle: 'Cartesian Join(카티션 조인)',
-      planRuleCartesianJoinMsg: '{id}번 단계({operation})는 카티션 조인입니다 -- 조인 조건 없이 한쪽의 모든 행이 다른 쪽의 모든 행과 결합됩니다. 대부분 의도치 않은 경우이며 결과 건수가 급격히 늘어날 수 있으므로, 조인 조건이 빠지지 않았는지 확인하세요.',
-      planRuleNestedLoopLargeTitle: '대용량 Nested Loop',
-      planRuleNestedLoopLargeMsg: '{id}번 단계는 약 {rows}건을 처리하는 Nested Loop입니다. Nested Loop는 소량의 driving row에 적합하며, 이 정도 건수라면 Hash Join(또는 안쪽 테이블에 인덱스 추가)이 더 빠른 경우가 많습니다.',
-      planRuleLargeSortTitle: '대용량 Sort',
-      planRuleLargeSortMsg: '{id}번 단계({operation} {options})가 약 {bytes} 규모를 정렬합니다. 이 정도 크기는 메모리(PGA)를 넘어 TEMP 테이블스페이스로 스필될 수 있으며, 필요한 순서를 이미 만족하는 인덱스가 있다면 정렬 자체를 없앨 수 있습니다.',
-      planRuleTopCostStepTitle: '비용 지배적 단계',
-      planRuleTopCostStepMsg: '{id}번 단계({operation}, 대상: {object})가 이 실행계획 전체 예상 비용의 {pct}%를 차지합니다 -- 가장 먼저 살펴볼 가치가 있는 단계입니다.',
-      sidSerialTitle: 'SID {sid}, SERIAL# {serial}',
-      confirmKillSession: 'SID {sid}, SERIAL# {serial} 세션을 지금 종료할까요? (즉시)\n커밋되지 않은 작업은 롤백되며 세션이 강제로 종료됩니다. 되돌릴 수 없습니다.',
-      killingLabel: '⏳ 종료 중...',
-      killSessionRequestFailed: '세션 종료 요청에 실패했습니다: {msg}',
-      btnReport: '레포트',
-      reportFilenamePrompt: '주간 DB 상태 레포트 파일명을 입력하세요:',
-      reportGeneratingLabel: '⏳ 생성 중...',
-      reportGeneratedToast: '레포트가 저장되었습니다: {path}',
-      reportFailedToast: '레포트 생성에 실패했습니다: {msg}',
-      themeDark: '🌙 어두운 화면',
-      themeLight: '☀️ 밝은 화면'
+    ops: {
+      btn: document.getElementById('tabBtnOps'),
+      panel: document.getElementById('tabPanelOps'),
+      loaded: false,
+      load: loadOpsUsage
+    },
+    recovery: {
+      btn: document.getElementById('tabBtnRecovery'),
+      panel: document.getElementById('tabPanelRecovery'),
+      loaded: false,
+      load: loadRecoveryUsage
+    },
+    tuning: {
+      btn: document.getElementById('tabBtnTuning'),
+      panel: document.getElementById('tabPanelTuning'),
+      loaded: false,
+      load: loadTuningCheck
+    },
+    objectview: {
+      btn: document.getElementById('tabBtnObjectView'),
+      panel: document.getElementById('tabPanelObjectView'),
+      loaded: false,
+      load: loadObjectViewOwners
+      // The SQL Query Runner card lives in this same tab now (merged with
+      // what used to be a separate SQL tab) but has no data to lazily load
+      // on first visit -- it only shows results once the user runs a
+      // query -- so `load` here only ever populates the object explorer's
+      // owner list, and (like Temp/Recovery) this tab is never touched by
+      // the 15s auto-refresh timer, which only ever calls loadStatus()
+      // (Main tab data).
+    },
+    help: {
+      btn: document.getElementById('tabBtnHelp'),
+      panel: document.getElementById('tabPanelHelp')
+      // Static content, already in the page markup -- nothing to load.
     }
   };
 
-  // Default (nothing saved yet, i.e. first-ever launch) is Korean -- only
-  // an explicit saved "en" switches it back.
-  let currentLang = (function () {
+  function switchTab(tab) {
+    if (!TABS[tab]) return;
+    if (isDemoMode && DEMO_DISABLED_TABS.includes(tab)) return;
+    Object.keys(TABS).forEach(key => {
+      const isActive = key === tab;
+      TABS[key].btn.classList.toggle('active', isActive);
+      TABS[key].panel.hidden = !isActive;
+    });
+    const entry = TABS[tab];
+    if (entry.load && !entry.loaded) {
+      entry.loaded = true;
+      entry.load();
+    }
+  }
+
+  Object.keys(TABS).forEach(key => {
+    TABS[key].btn.addEventListener('click', () => switchTab(key));
+  });
+
+  // --- Card drag-and-drop reordering / cross-tab moving ---
+  // Every card can be dragged (via the small grip handle added to its
+  // header below) to reorder it within a tab, or dropped onto a different
+  // tab's button to move it there. The resulting per-tab card order is
+  // persisted to localStorage (like the language preference above) so it
+  // survives app restarts, and cards can move freely between all three tabs.
+  //
+  // Implementation notes:
+  // - Uses the Pointer Events API so the same code handles mouse and touch.
+  // - Each card's identity is its `data-card-id` (derived from its
+  //   `dot-<id>`/`box-<id>` element ids, which every card already has), not
+  //   its DOM position -- so rendering code elsewhere (which all targets
+  //   elements by id via getElementById/querySelector) keeps working no
+  //   matter where a card has been dragged to.
+  // - Since Main's cards are populated by the always-running 15s
+  //   auto-refresh regardless of which tab is visible, a Main card dragged
+  //   into Temp/Recovery just keeps updating normally. Going the other way
+  //   (a Temp/Recovery card dragged into Main) would otherwise never load
+  //   its data unless the user happens to visit its original tab -- see
+  //   ensureLoadedForRelocatedCards() below, which handles that.
+
+  // Bumped (V2, then V3, then V4) each time a tab's default card order was
+  // intentionally redesigned -- a saved layout otherwise wins over the
+  // default for any card it already lists (see applyCardLayout()'s merge
+  // below), which would silently keep old installs on the pre-redesign
+  // order forever. Bump this again for any future deliberate default-order
+  // change; simple additions/relocations of individual cards don't need it
+  // (CARD_HOME_TAB already handles those without discarding the user's
+  // whole layout).
+  const CARD_LAYOUT_KEY = 'orapulseCardLayoutV4';
+  const DEFAULT_CARD_LAYOUT = {
+    main: ['instance', 'combo', 'sessionlist', 'blocking', 'longops', 'tablestats', 'jobfailures', 'accountsecurity', 'alertlog'],
+    ops: ['keyparams', 'undoconfig', 'instanceeff', 'loadprofile', 'tempspace', 'tempsession', 'autoextend', 'redolog', 'tablespaceio', 'topqueries', 'topqueriescpu', 'topqueriesgets', 'waitevent'],
+    recovery: ['recentdml', 'recoverydest', 'recoverytype']
+    // No 'objectview' entry: that tab (object explorer + SQL Query Runner)
+    // is a fixed layout, not a rearrangeable dashboard, so its cards are
+    // deliberately outside this drag-and-drop/reorder system -- see
+    // ensureLoadedForRelocatedCards()'s own guard for the same reasoning.
+  };
+  const ALL_CARD_IDS = new Set();
+  Object.values(DEFAULT_CARD_LAYOUT).forEach(ids => ids.forEach(id => ALL_CARD_IDS.add(id)));
+
+  // Which tab each card currently belongs to by default -- used to detect a
+  // saved layout entry left over from before an app update moved a card to
+  // a different tab (e.g. Top 5 Wait Events: Main -> Ops). Without this, a
+  // user's old localStorage layout would keep pulling the card back to its
+  // former tab forever, silently overriding the new default on every load.
+  const CARD_HOME_TAB = {};
+  Object.keys(DEFAULT_CARD_LAYOUT).forEach(tabKey => {
+    DEFAULT_CARD_LAYOUT[tabKey].forEach(id => { CARD_HOME_TAB[id] = tabKey; });
+  });
+
+  function getTabGrid(tabKey) {
+    return TABS[tabKey].panel.querySelector('.grid');
+  }
+
+  function getActiveTabKey() {
+    return Object.keys(TABS).find(k => TABS[k].btn.classList.contains('active'));
+  }
+
+  // Tags each card with a stable data-card-id (read off its existing
+  // dot-<id> element, so no separate id list needs to be kept in sync by
+  // hand) and inserts a small grip handle at the start of its header --
+  // inside .h2-left when present (cards with a badge/button on the right,
+  // which use justify-content: space-between), otherwise directly in <h2>.
+  function initCardDragHandles() {
+    document.querySelectorAll('.tab-panel .grid > .card').forEach(card => {
+      const dot = card.querySelector('.status-dot[id^="dot-"]');
+      if (!dot) return; // every current card has one; skip defensively if a future card doesn't
+      const cardId = dot.id.replace(/^dot-/, '');
+      // Object View / SQL Query Runner (and any future card like them) are
+      // deliberately outside the reorder/persistence system -- see
+      // DEFAULT_CARD_LAYOUT's own comment -- so they get no drag handle at
+      // all, rather than one that would visually invite dragging but snap
+      // back to its fixed spot on the next reload regardless.
+      if (!ALL_CARD_IDS.has(cardId)) return;
+      card.setAttribute('data-card-id', cardId);
+
+      const h2 = card.querySelector('h2');
+      if (!h2 || h2.querySelector('.card-drag-handle')) return;
+      const handle = document.createElement('span');
+      handle.className = 'card-drag-handle';
+      handle.setAttribute('data-i18n-title', 'dragHandleTitle');
+      handle.title = t('dragHandleTitle');
+      handle.textContent = '⠿';
+      const leftGroup = h2.querySelector('.h2-left') || h2;
+      leftGroup.insertBefore(handle, leftGroup.firstChild);
+
+      handle.addEventListener('pointerdown', (e) => {
+        if (e.button > 0) return; // left mouse button / touch / pen only, not right/middle-click
+        e.preventDefault();
+        try { handle.setPointerCapture(e.pointerId); } catch (_) { /* ignore */ }
+        startCardDrag(e, card);
+      });
+      handle.addEventListener('pointermove', (e) => {
+        if (cardDragState && cardDragState.pointerId === e.pointerId) updateCardDragPosition(e);
+      });
+      handle.addEventListener('pointerup', (e) => {
+        if (cardDragState && cardDragState.pointerId === e.pointerId) endCardDrag();
+      });
+      handle.addEventListener('pointercancel', (e) => {
+        if (cardDragState && cardDragState.pointerId === e.pointerId) endCardDrag();
+      });
+    });
+  }
+
+  let cardDragState = null; // { card, placeholder, pointerId, offsetX, offsetY, tabHoverKey, tabHoverTimer }
+
+  function startCardDrag(e, card) {
+    if (cardDragState) return;
+    const rect = card.getBoundingClientRect();
+
+    // The card is deliberately NOT reparented to <body> here, even though
+    // it's visually floating via position:fixed for the rest of the drag --
+    // removing+reinserting the pointer-capturing element mid-gesture causes
+    // Chromium (and other engines) to silently release pointer capture,
+    // which would strand the card mid-drag with no pointerup ever firing.
+    // It's left as a sibling of its own placeholder inside its original
+    // grid; position:fixed already excludes it from grid layout, so this
+    // doesn't visually double up the space. The one-time reparent into
+    // wherever the placeholder ends up happens in endCardDrag(), after the
+    // gesture (and the need for capture) is already over.
+    const placeholder = document.createElement('div');
+    placeholder.className = 'card-drag-placeholder';
+    if (card.classList.contains('card-wide')) placeholder.classList.add('card-wide');
+    placeholder.style.height = `${rect.height}px`;
+    card.parentNode.insertBefore(placeholder, card.nextSibling);
+
+    card.classList.add('dragging');
+    card.style.width = `${rect.width}px`;
+    card.style.height = `${rect.height}px`;
+    card.style.left = `${rect.left}px`;
+    card.style.top = `${rect.top}px`;
+
+    cardDragState = {
+      card,
+      placeholder,
+      pointerId: e.pointerId,
+      offsetX: e.clientX - rect.left,
+      offsetY: e.clientY - rect.top,
+      tabHoverKey: null,
+      tabHoverTimer: null
+    };
+    document.body.classList.add('card-drag-active');
+  }
+
+  function updateCardDragPosition(e) {
+    const state = cardDragState;
+    if (!state) return;
+    state.card.style.left = `${e.clientX - state.offsetX}px`;
+    state.card.style.top = `${e.clientY - state.offsetY}px`;
+
+    const elUnderPointer = document.elementFromPoint(e.clientX, e.clientY);
+
+    // Hovering a *different* tab's button for a short moment switches to
+    // it, so the card can be dropped there -- the placeholder (marking the
+    // drop position) moves along with the switch.
+    const tabBtn = elUnderPointer && elUnderPointer.closest('.tab-btn');
+    const hoverTabKey = tabBtn ? tabBtn.getAttribute('data-tab') : null;
+    const activeTabKey = getActiveTabKey();
+
+    document.querySelectorAll('.tab-btn.drag-hover').forEach(b => b.classList.remove('drag-hover'));
+
+    if (hoverTabKey && hoverTabKey !== activeTabKey) {
+      tabBtn.classList.add('drag-hover');
+      if (state.tabHoverKey !== hoverTabKey) {
+        state.tabHoverKey = hoverTabKey;
+        clearTimeout(state.tabHoverTimer);
+        state.tabHoverTimer = setTimeout(() => {
+          if (!cardDragState || cardDragState.tabHoverKey !== hoverTabKey) return;
+          switchTab(hoverTabKey);
+          getTabGrid(hoverTabKey).appendChild(state.placeholder);
+        }, 450);
+      }
+    } else {
+      state.tabHoverKey = null;
+      clearTimeout(state.tabHoverTimer);
+    }
+
+    // Reposition the placeholder within whichever grid is currently
+    // visible, based on which card (if any) the pointer is over.
+    const grid = getTabGrid(getActiveTabKey());
+    const targetCard = elUnderPointer && elUnderPointer.closest('.card');
+    if (targetCard && targetCard !== state.card && grid.contains(targetCard)) {
+      const targetRect = targetCard.getBoundingClientRect();
+      const isWide = targetCard.classList.contains('card-wide');
+      const before = isWide
+        ? (e.clientY < targetRect.top + targetRect.height / 2)
+        : (e.clientX < targetRect.left + targetRect.width / 2);
+      grid.insertBefore(state.placeholder, before ? targetCard : targetCard.nextSibling);
+    } else if (state.placeholder.parentNode !== grid) {
+      grid.appendChild(state.placeholder);
+    }
+  }
+
+  function endCardDrag() {
+    const state = cardDragState;
+    if (!state) return;
+    clearTimeout(state.tabHoverTimer);
+    document.querySelectorAll('.tab-btn.drag-hover').forEach(b => b.classList.remove('drag-hover'));
+
+    state.placeholder.parentNode.insertBefore(state.card, state.placeholder);
+    state.placeholder.remove();
+    state.card.classList.remove('dragging');
+    state.card.style.position = '';
+    state.card.style.left = '';
+    state.card.style.top = '';
+    state.card.style.width = '';
+    state.card.style.height = '';
+    document.body.classList.remove('card-drag-active');
+
+    cardDragState = null;
+    saveCardLayout();
+    ensureLoadedForRelocatedCards();
+  }
+
+  // Reads the *actual* current DOM placement of cards across all three tabs
+  // (the source of truth once drag-and-drop has happened).
+  function captureCurrentLayout() {
+    const layout = {};
+    Object.keys(TABS).forEach(tabKey => {
+      layout[tabKey] = Array.from(getTabGrid(tabKey).children)
+        .filter(el => el.classList.contains('card'))
+        .map(el => el.getAttribute('data-card-id'));
+    });
+    return layout;
+  }
+
+  function saveCardLayout() {
     try {
-      const saved = localStorage.getItem('orapulseLang');
-      return saved === 'en' ? 'en' : 'ko';
+      localStorage.setItem(CARD_LAYOUT_KEY, JSON.stringify(captureCurrentLayout()));
     } catch (_) {
-      return 'ko'; // localStorage can throw in some restricted browser contexts -- fall back quietly
+      // localStorage can throw in some restricted browser contexts -- the
+      // new layout still applies for the rest of this session, it just
+      // won't be remembered on next launch.
+    }
+  }
+
+  function loadSavedCardLayout() {
+    try {
+      const raw = localStorage.getItem(CARD_LAYOUT_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      return (parsed && typeof parsed === 'object') ? parsed : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  // Moves each card's actual DOM node (not a clone, so ids/listeners are
+  // untouched) into the tab/position recorded in `layout`. This is a merge,
+  // not a blind replay of `layout`: for each tab, DEFAULT_CARD_LAYOUT[tabKey]
+  // is walked in its default order as the skeleton, and at every slot whose
+  // card the user has an explicit saved position for (present in `layout`
+  // AND still belonging to this tab per CARD_HOME_TAB -- a stale entry left
+  // over from before an app update relocated the card to a different tab is
+  // treated as absent, not honored), that slot is filled from the saved
+  // order instead. A card missing from the saved layout entirely (new since
+  // it was saved, e.g. a card an app update added or relocated here) simply
+  // keeps its default position, rather than being incidentally shoved to
+  // one end of the tab by every other, known card getting moved around it.
+  function applyCardLayout(layout) {
+    if (!layout) return;
+    Object.keys(DEFAULT_CARD_LAYOUT).forEach(tabKey => {
+      const grid = getTabGrid(tabKey);
+      const wanted = Array.isArray(layout[tabKey]) ? layout[tabKey] : [];
+      const known = [];
+      const seen = new Set();
+      wanted.forEach(cardId => {
+        if (CARD_HOME_TAB[cardId] === tabKey && !seen.has(cardId)) {
+          known.push(cardId);
+          seen.add(cardId);
+        }
+      });
+      const knownQueue = known.slice();
+      const finalOrder = DEFAULT_CARD_LAYOUT[tabKey].map(
+        defaultId => (seen.has(defaultId) ? knownQueue.shift() : defaultId)
+      );
+      finalOrder.forEach(cardId => {
+        const card = document.querySelector(`.card[data-card-id="${cardId}"]`);
+        if (card) grid.appendChild(card);
+      });
+    });
+  }
+
+  // If a Temp/Recovery card has been relocated out of its home tab (either
+  // by a saved layout applied at startup, or by a drag-drop that just
+  // happened) and that tab hasn't loaded its data yet, load it right away
+  // instead of waiting for the user to happen to click that tab -- otherwise
+  // the relocated card would be stuck on "Loading..." indefinitely.
+  function ensureLoadedForRelocatedCards() {
+    const currentLayout = captureCurrentLayout();
+    Object.keys(TABS).forEach(tabKey => {
+      const entry = TABS[tabKey];
+      if (!entry.load || entry.loaded) return;
+      // Tabs outside the drag-and-drop card system (e.g. Object View,
+      // whose single card is a fixed explorer/viewer tool rather than a
+      // reorderable data card) have no DEFAULT_CARD_LAYOUT entry -- their
+      // card can never have been "relocated" away, so there's nothing to
+      // check here; they still load normally the first time their tab is
+      // opened, via switchTab()'s own entry.load() call.
+      if (!DEFAULT_CARD_LAYOUT[tabKey]) return;
+      const stillHome = DEFAULT_CARD_LAYOUT[tabKey].every(id => currentLayout[tabKey].includes(id));
+      if (!stillHome) {
+        entry.loaded = true;
+        entry.load();
+      }
+    });
+  }
+
+  initCardDragHandles();
+  applyCardLayout(loadSavedCardLayout());
+  ensureLoadedForRelocatedCards();
+
+  // Table Statistics Collection card: the user (OWNER) list is loaded only once when the page loads,
+  // and the actual table list is fetched only when a user is selected in the select box.
+  const tableStatsOwnerSelect = document.getElementById('tableStatsOwnerSelect');
+  const boxTableStats = document.getElementById('box-tablestats');
+  function TABLE_STATS_EMPTY_MSG() {
+    return `<div class="empty-msg">${t('tableStatsSelectPrompt')}</div>`;
+  }
+
+  async function loadTableOwners() {
+    setDot('tablestats', 'loading');
+    try {
+      const res = await fetch('/api/table-owners');
+      if (res.status === 401) {
+        window.location.href = '/';
+        return;
+      }
+      const data = await res.json();
+      if (!data.success) {
+        setDot('tablestats', 'error');
+        tableStatsOwnerSelect.innerHTML = `<option value="">${t('tableOwnersLoadFailedOption')}</option>`;
+        boxTableStats.innerHTML = `<div class="empty-msg">${escapeHtml(data.message)}</div>`;
+        return;
+      }
+      setDot('tablestats', 'ok');
+      const options = data.data
+        .map(owner => `<option value="${escapeHtml(owner)}">${escapeHtml(owner)}</option>`)
+        .join('');
+      tableStatsOwnerSelect.innerHTML = `<option value="">${t('selectUserPlaceholder')}</option>${options}`;
+    } catch (err) {
+      setDot('tablestats', 'error');
+      boxTableStats.innerHTML = `<div class="empty-msg">${t('tableOwnersLoadFailedMsg', { msg: escapeHtml(err.message) })}</div>`;
+    }
+  }
+
+  async function loadTableStats(owner) {
+    if (!owner) {
+      lastTableStatsOwner = null;
+      lastTableStatsData = null;
+      boxTableStats.innerHTML = TABLE_STATS_EMPTY_MSG();
+      return;
+    }
+    boxTableStats.innerHTML = `<div class="skeleton">${t('loadingLabel')}</div>`;
+    try {
+      const res = await fetch(`/api/table-stats?owner=${encodeURIComponent(owner)}`);
+      if (res.status === 401) {
+        window.location.href = '/';
+        return;
+      }
+      const data = await res.json();
+      if (!data.success) {
+        setDot('tablestats', 'error');
+        boxTableStats.innerHTML = `<div class="empty-msg">${escapeHtml(data.message)}</div>`;
+        return;
+      }
+      lastTableStatsOwner = owner;
+      lastTableStatsData = data;
+      setDot('tablestats', 'ok');
+      if (!data.data.length) {
+        boxTableStats.innerHTML = `<div class="empty-msg">${t('tableStatsNoTablesForOwner', { owner: escapeHtml(owner) })}</div>`;
+        return;
+      }
+      const rows = data.data.map(row => `
+        <tr class="ctx-row" data-owner="${escapeHtml(owner)}" data-table="${escapeHtml(row.TABLE_NAME)}" data-partition="${escapeHtml(row.PARTITION_NAME || '')}" title="${escapeHtml(t('tableRowTooltip'))}">
+          <td class="ts-check-col"><input type="checkbox" class="ts-row-check" data-table="${escapeHtml(row.TABLE_NAME)}" data-partition="${escapeHtml(row.PARTITION_NAME || '')}"></td>
+          <td>${escapeHtml(row.TABLE_NAME)}</td>
+          <td>${escapeHtml(row.PARTITION_NAME || '-')}</td>
+          <td>${escapeHtml(row.TABLESPACE_NAME || '-')}</td>
+          <td>${row.NUM_ROWS === null ? '-' : Number(row.NUM_ROWS).toLocaleString()}</td>
+          <td>${row.BLOCKS === null ? '-' : Number(row.BLOCKS).toLocaleString()}</td>
+          <td>${row.CHAIN_CNT === null ? '-' : Number(row.CHAIN_CNT).toLocaleString()}</td>
+          <td>${escapeHtml(row.LAST_ANALYZED || t('noCollectionHistory'))}</td>
+        </tr>`).join('');
+      const note = data.truncated
+        ? `<div class="sess-table-note">${t('tableStatsTruncatedNote', { n: Number(data.totalCount).toLocaleString() })}</div>`
+        : '';
+      boxTableStats.innerHTML = `
+        <div class="ts-batch-bar">
+          <button type="button" class="primary" id="tableStatsBatchBtn" disabled>${t('btnGatherSelected')}</button>
+          <span class="ts-batch-count" id="tableStatsBatchCount">${t('selectedCount', { n: 0 })}</span>
+        </div>
+        <div class="sess-table-wrap">
+          <table class="sess-table">
+            <thead><tr>
+              <th class="ts-check-col"><input type="checkbox" class="ts-select-all" id="tableStatsSelectAll" title="${escapeHtml(t('selectAllTitle'))}"></th>
+              <th>${t('tableNameHeader')}</th><th>${t('partitionNameHeader')}</th><th>${t('tablespaceNameHeader')}</th>
+              <th>${t('numRowsHeader')}</th><th>${t('blocksHeader')}</th><th>${t('chainCntHeader')}</th><th>${t('lastAnalyzedHeader')}</th>
+            </tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
+        ${note}
+        <div id="tableStatsBatchResult"></div>`;
+    } catch (err) {
+      setDot('tablestats', 'error');
+      boxTableStats.innerHTML = `<div class="empty-msg">${t('tableStatsLoadFailedMsg', { msg: escapeHtml(err.message) })}</div>`;
+    }
+  }
+
+  tableStatsOwnerSelect.addEventListener('change', () => loadTableStats(tableStatsOwnerSelect.value));
+
+  // Right-clicking a row in the table statistics collection grid opens a custom
+  // context menu ("Gather Statistics"), and clicking it runs DBMS_STATS.GATHER_TABLE_STATS.
+  // Since box-tablestats is entirely replaced via innerHTML on every refresh,
+  // the event is delegated to the fixed parent element (box-tablestats), just like the session list.
+  const toast = document.getElementById('toast');
+  let toastTimer = null;
+  function showToast(message, type) {
+    toast.textContent = message;
+    toast.className = `toast show ${type === 'error' ? 'error' : 'ok'}`;
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { toast.classList.remove('show'); }, 6000);
+  }
+
+  const tableStatsCtxMenu = document.getElementById('tableStatsCtxMenu');
+  const tableStatsCtxMenuTitle = document.getElementById('tableStatsCtxMenuTitle');
+  const tableStatsCtxMenuGather = document.getElementById('tableStatsCtxMenuGather');
+  const tableStatsCtxMenuProperties = document.getElementById('tableStatsCtxMenuProperties');
+  let ctxTarget = null; // { owner, tableName, partitionName }
+
+  function closeTableStatsCtxMenu() {
+    tableStatsCtxMenu.classList.remove('show');
+    ctxTarget = null;
+  }
+
+  function openTableStatsCtxMenu(x, y, owner, tableName, partitionName) {
+    ctxTarget = { owner, tableName, partitionName };
+    tableStatsCtxMenuTitle.textContent = partitionName
+      ? `${owner}.${tableName} (${partitionName})`
+      : `${owner}.${tableName}`;
+    tableStatsCtxMenuGather.disabled = isDemoMode;
+    tableStatsCtxMenuGather.textContent = t('btnGatherStats');
+    tableStatsCtxMenuGather.title = isDemoMode ? t('demoDisabledTooltip') : '';
+    tableStatsCtxMenuProperties.disabled = false;
+    tableStatsCtxMenuProperties.textContent = t('btnViewTableProperties');
+    tableStatsCtxMenu.classList.add('show');
+    // Adjust the position so the menu doesn't go off-screen.
+    const menuW = tableStatsCtxMenu.offsetWidth || 240;
+    const menuH = tableStatsCtxMenu.offsetHeight || 80;
+    const left = Math.min(x, window.innerWidth - menuW - 8);
+    const top = Math.min(y, window.innerHeight - menuH - 8);
+    tableStatsCtxMenu.style.left = `${Math.max(8, left)}px`;
+    tableStatsCtxMenu.style.top = `${Math.max(8, top)}px`;
+  }
+
+  // Long-press support (touch devices) for this context menu too -- see the
+  // watchLongPress() definition further below, near the session list
+  // context menu, for why this is needed on top of 'contextmenu'.
+  let tableStatsCtxFiredByTouch = false;
+
+  watchLongPress(boxTableStats, 'tr.ctx-row', (tr, x, y) => {
+    tableStatsCtxFiredByTouch = true;
+    openTableStatsCtxMenu(
+      x, y,
+      tr.getAttribute('data-owner'),
+      tr.getAttribute('data-table'),
+      tr.getAttribute('data-partition') || ''
+    );
+  });
+
+  boxTableStats.addEventListener('contextmenu', (e) => {
+    const tr = e.target.closest('tr.ctx-row');
+    if (!tr) return;
+    e.preventDefault();
+    if (tableStatsCtxFiredByTouch) {
+      tableStatsCtxFiredByTouch = false;
+      return;
+    }
+    openTableStatsCtxMenu(
+      e.clientX, e.clientY,
+      tr.getAttribute('data-owner'),
+      tr.getAttribute('data-table'),
+      tr.getAttribute('data-partition') || ''
+    );
+  });
+
+  document.addEventListener('click', (e) => {
+    if (tableStatsCtxMenu.classList.contains('show') && !tableStatsCtxMenu.contains(e.target)) {
+      closeTableStatsCtxMenu();
+    }
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && tableStatsCtxMenu.classList.contains('show')) closeTableStatsCtxMenu();
+  });
+  // Close the menu on scroll/refresh so a misplaced menu doesn't stay open.
+  window.addEventListener('scroll', closeTableStatsCtxMenu, true);
+
+  tableStatsCtxMenuGather.addEventListener('click', async () => {
+    if (!ctxTarget || isDemoMode) return;
+    const { owner, tableName, partitionName } = ctxTarget;
+    const label = partitionName ? `${owner}.${tableName} (${partitionName})` : `${owner}.${tableName}`;
+    if (!confirm(t('confirmGatherSingle', { label }))) {
+      closeTableStatsCtxMenu();
+      return;
+    }
+    tableStatsCtxMenuGather.disabled = true;
+    tableStatsCtxMenuGather.textContent = t('collectingLabel');
+    try {
+      const res = await fetch('/api/gather-table-stats', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ owner, tableName, partitionName: partitionName || undefined })
+      });
+      if (res.status === 401) {
+        window.location.href = '/';
+        return;
+      }
+      const data = await res.json();
+      showToast(data.message, data.success ? 'ok' : 'error');
+      if (data.success) {
+        // Reload the current user's list since the collection history (LAST_ANALYZED) has changed.
+        loadTableStats(tableStatsOwnerSelect.value);
+      }
+    } catch (err) {
+      showToast(t('requestStatsFailed', { msg: err.message }), 'error');
+    } finally {
+      closeTableStatsCtxMenu();
+    }
+  });
+
+  tableStatsCtxMenuProperties.addEventListener('click', () => {
+    if (!ctxTarget) return;
+    const { owner, tableName, partitionName } = ctxTarget;
+    closeTableStatsCtxMenu();
+    openTablePropertiesModal(owner, tableName, partitionName);
+  });
+
+  // Multi-select batch statistics collection: checkboxes on each row
+  // ("select all" in the header, or individual rows) plus a
+  // "Gather Statistics for Selected" button that runs all of them in a
+  // single request. Since box-tablestats is entirely rebuilt via innerHTML
+  // on every load/refresh, all of this is delegated to the fixed parent
+  // element, matching the pattern used for the context menu above.
+  function updateTableStatsBatchUI() {
+    const checks = boxTableStats.querySelectorAll('input.ts-row-check');
+    const checked = boxTableStats.querySelectorAll('input.ts-row-check:checked');
+    const batchBtn = document.getElementById('tableStatsBatchBtn');
+    const batchCount = document.getElementById('tableStatsBatchCount');
+    if (batchBtn) {
+      batchBtn.disabled = isDemoMode || checked.length === 0;
+      if (isDemoMode) batchBtn.title = t('demoDisabledTooltip');
+    }
+    if (batchCount) batchCount.textContent = t('selectedCount', { n: checked.length });
+    const selectAll = document.getElementById('tableStatsSelectAll');
+    if (selectAll) {
+      selectAll.checked = checks.length > 0 && checked.length === checks.length;
+      selectAll.indeterminate = checked.length > 0 && checked.length < checks.length;
+    }
+  }
+
+  boxTableStats.addEventListener('change', (e) => {
+    if (e.target.classList.contains('ts-select-all')) {
+      const checked = e.target.checked;
+      boxTableStats.querySelectorAll('input.ts-row-check').forEach(cb => { cb.checked = checked; });
+      updateTableStatsBatchUI();
+    } else if (e.target.classList.contains('ts-row-check')) {
+      updateTableStatsBatchUI();
+    }
+  });
+
+  function renderTableStatsBatchResult(results, owner) {
+    const container = document.getElementById('tableStatsBatchResult');
+    if (!container) return;
+    const rowsHtml = results.map(r => {
+      const label = r.partitionName ? `${r.tableName} (${r.partitionName})` : r.tableName;
+      return `
+        <div class="ts-batch-result-row ${r.ok ? 'ok' : 'fail'}">
+          <span class="icon">${r.ok ? '✓' : '✕'}</span>
+          <span><strong>${escapeHtml(label)}</strong> <span class="msg">${escapeHtml(r.message)}</span></span>
+        </div>`;
+    }).join('');
+    // The table above is left as-is (still showing the pre-collection
+    // LAST_ANALYZED values) rather than auto-reloaded, so these results
+    // stay visible instead of being wiped out immediately. Refresh
+    // explicitly (via the button below, or by reselecting the owner) once
+    // you're done reading them.
+    container.innerHTML = `
+      <div class="sess-filter-row" style="margin-top: 10px; margin-bottom: 0;">
+        <button type="button" class="sess-filter-reset" id="tableStatsBatchRefreshBtn">${t('btnRefreshList')}</button>
+      </div>
+      <div class="ts-batch-result">${rowsHtml}</div>`;
+    const refreshBtn = document.getElementById('tableStatsBatchRefreshBtn');
+    if (refreshBtn) {
+      refreshBtn.addEventListener('click', () => loadTableStats(owner));
+    }
+  }
+
+  boxTableStats.addEventListener('click', async (e) => {
+    const btn = e.target.closest('#tableStatsBatchBtn');
+    if (!btn || isDemoMode) return;
+
+    const owner = tableStatsOwnerSelect.value;
+    const checked = Array.from(boxTableStats.querySelectorAll('input.ts-row-check:checked'));
+    if (!owner || !checked.length) return;
+
+    const items = checked.map(cb => ({
+      tableName: cb.getAttribute('data-table'),
+      partitionName: cb.getAttribute('data-partition') || undefined
+    }));
+
+    const label = items.length === 1
+      ? (items[0].partitionName ? `${items[0].tableName} (${items[0].partitionName})` : items[0].tableName)
+      : t('nTablesLabel', { n: items.length });
+    if (!confirm(t('confirmGatherBatch', { label }))) {
+      return;
+    }
+
+    btn.disabled = true;
+    const originalText = btn.textContent;
+    // This is a single request that runs all items sequentially server-side
+    // and responds once everything is done -- there's no incremental
+    // progress to report while it's in flight, so the label just says how
+    // many are queued rather than showing a fake live counter.
+    btn.textContent = t('collectingItemsLabel', { n: items.length });
+
+    try {
+      const res = await fetch('/api/gather-table-stats-batch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ owner, items })
+      });
+      if (res.status === 401) {
+        window.location.href = '/';
+        return;
+      }
+      const data = await res.json();
+      if (!data.success) {
+        showToast(data.message || t('requestStatsFailedGeneric'), 'error');
+        return;
+      }
+      const { total, succeeded, failed } = data.summary;
+      showToast(
+        failed === 0
+          ? t('statsCompletedAll', { n: total })
+          : t('statsCompletedPartial', { succeeded, failed, total }),
+        failed === 0 ? 'ok' : 'error'
+      );
+      renderTableStatsBatchResult(data.results, owner);
+    } catch (err) {
+      showToast(t('requestStatsFailed', { msg: err.message }), 'error');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = originalText;
+    }
+  });
+
+  function renderMeter(pct) {
+    const p = Math.max(0, Math.min(100, Number(pct) || 0));
+    const cls = pctClass(p);
+    return `
+      <div class="bar-track">
+        <div class="bar-fill ${cls}" style="width:${p}%"></div>
+      </div>`;
+  }
+
+  // The DashBoard tab's data used to be one /api/db-status call on a
+  // single 15s timer. It's now three independent calls, each polled at a
+  // cadence matching how fast that data actually changes (session/blocking
+  // activity is worth checking often; instance info almost never changes)
+  // -- see backend/routes_connect.py's three db_status_*() endpoints. Each
+  // loadXxxStatus() below owns its own lastDbStatusData merge (so
+  // rerenderAll() on a language switch still has a full picture) and its
+  // own isLoading guard (so its own auto-tick and the manual refresh
+  // button don't overlap with each other, independent of the other two).
+  let isLoadingSessions = false;
+  let isLoadingResources = false;
+  let isLoadingInstance = false;
+  const SESSIONS_REFRESH_MS = 15000;
+  const RESOURCES_REFRESH_MS = 30000;
+  const INSTANCE_REFRESH_MS = 5 * 60000;
+
+  async function loadSessionsStatus() {
+    if (isLoadingSessions) return;
+    isLoadingSessions = true;
+    hideBanner();
+    try {
+      const res = await fetch('/api/db-status-sessions');
+      if (res.status === 401) {
+        window.location.href = '/';
+        return;
+      }
+      const data = await res.json();
+      if (!data.success) {
+        showBanner(data.message || t('dbStatusLoadFailed'));
+        return;
+      }
+      lastDbStatusData = { ...lastDbStatusData, ...data };
+      renderSessionCountBadge(data.sessionCount);
+      renderSessionList(data.sessionList);
+      renderBlockingSessions(data.blockingSessions);
+      renderLongRunningOps(data.longRunningOps);
+    } catch (err) {
+      showBanner(t('networkError', { msg: err.message }));
+    } finally {
+      isLoadingSessions = false;
+    }
+  }
+
+  async function loadResourcesStatus() {
+    if (isLoadingResources) return;
+    isLoadingResources = true;
+    hideBanner();
+    try {
+      const res = await fetch('/api/db-status-resources');
+      if (res.status === 401) {
+        window.location.href = '/';
+        return;
+      }
+      const data = await res.json();
+      if (!data.success) {
+        showBanner(data.message || t('dbStatusLoadFailed'));
+        return;
+      }
+      lastDbStatusData = { ...lastDbStatusData, ...data };
+      renderCombo(data.cpu, data.memory);
+    } catch (err) {
+      showBanner(t('networkError', { msg: err.message }));
+    } finally {
+      isLoadingResources = false;
+    }
+  }
+
+  async function loadInstanceStatus() {
+    if (isLoadingInstance) return;
+    isLoadingInstance = true;
+    hideBanner();
+    try {
+      const res = await fetch('/api/db-status-instance');
+      if (res.status === 401) {
+        window.location.href = '/';
+        return;
+      }
+      const data = await res.json();
+      if (!data.success) {
+        showBanner(data.message || t('dbStatusLoadFailed'));
+        return;
+      }
+      lastDbStatusData = { ...lastDbStatusData, ...data };
+      renderInstance(data.instance);
+    } catch (err) {
+      showBanner(t('networkError', { msg: err.message }));
+    } finally {
+      isLoadingInstance = false;
+    }
+  }
+
+  // Manual refresh button and the very first page load always fetch all
+  // three, unconditionally (no visibility/leader-tab gating -- see
+  // shouldAutoRefresh() below, which only gates the *automatic* timers).
+  async function loadStatus() {
+    refreshBtn.disabled = true;
+    refreshBtn.textContent = t('loadingLabel');
+    try {
+      await Promise.all([loadSessionsStatus(), loadResourcesStatus(), loadInstanceStatus()]);
+    } finally {
+      refreshBtn.disabled = false;
+      refreshBtn.textContent = t('btnRefresh');
+    }
+  }
+
+  refreshBtn.addEventListener('click', loadStatus);
+
+  // --- Reduce DB load: pause auto-refresh while hidden, and only the
+  // "leader" tab (of possibly several OraPulse tabs/windows open at once)
+  // actually polls. ---
+  //
+  // Leader election uses the Web Locks API: only one tab across the whole
+  // browser can hold a given named lock at a time, and the lock is
+  // released automatically the moment that tab closes or navigates away,
+  // letting the next waiting tab pick it up -- exactly the "singleton
+  // background work" behavior we want, with no manual heartbeat/cleanup
+  // needed. Supported in every browser this app targets (Chrome, Edge,
+  // Firefox 96+); on an older browser without navigator.locks, every tab
+  // just falls back to always being "the leader" (today's behavior).
+  // Note: this deliberately does NOT trigger an extra refresh the moment
+  // the lock is acquired -- the page's own bootstrap sequence below already
+  // does an unconditional first load regardless of leader status, so an
+  // extra call here would just double-fetch on every normal page load.
+  let isLeader = false;
+  if (navigator.locks) {
+    navigator.locks.request('orapulse-auto-refresh-leader', () => {
+      isLeader = true;
+      return new Promise(() => {}); // hold the lock for this tab's lifetime
+    });
+  } else {
+    isLeader = true;
+  }
+
+  function tabIsActive(tabKey) {
+    return !TABS[tabKey].panel.hidden;
+  }
+
+  function shouldAutoRefresh(tabKey) {
+    return isLeader && !document.hidden && tabIsActive(tabKey);
+  }
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden || !isLeader) return;
+    // Catch up whichever tab is actually being looked at right now, since
+    // its data may have gone stale while this tab/window was hidden.
+    if (tabIsActive('main')) loadStatus();
+    else if (tabIsActive('ops')) loadOpsUsage();
+    else if (tabIsActive('tuning')) loadTuningCheck();
+  });
+
+  // Small "v1.0001" next to the title, fetched from whichever backend is
+  // actually running (main.js or main.py both serve the same VERSION file
+  // via /api/version) rather than hardcoded here, so it can't drift out of
+  // sync with the real running version.
+  (async function loadAppVersion() {
+    try {
+      const res = await fetch('/api/version');
+      const data = await res.json();
+      if (data.success && data.version) {
+        document.getElementById('appVersion').textContent = `v${data.version}`;
+      }
+      if (data.success && data.demoMode) {
+        isDemoMode = true;
+        applyDemoModeUi();
+      }
+    } catch (err) {
+      // Non-critical -- just leave the version text empty (and demo mode off).
     }
   })();
 
-  // Mirrors currentLang above. The actual data-theme attribute was already
-  // applied to <html> by the tiny inline <script> at the very top of this
-  // file (before first paint) -- this just gives the rest of the page's JS
-  // (the #themeSelect wiring below) the same value to initialize the select
-  // control from, so the two stay in sync. Default (nothing saved yet) is
-  // light -- only an explicit saved "dark" switches it back.
-  let currentTheme = (function () {
+  // Disables everything the demo build restricts, once /api/version has
+  // confirmed demoMode is on: every tab except DashBoard/Ops (switchTab()
+  // above already refuses to switch into one of these, this just makes
+  // that visible), and the Table Statistics Collection card's gather-stats
+  // actions (the single-row context menu item and the batch button). The
+  // session list's right-click menu is guarded separately, directly inside
+  // openSessionCtxMenu() below, since it's rebuilt fresh on every open
+  // rather than sitting in the DOM to be disabled once here.
+  function applyDemoModeUi() {
+    DEMO_DISABLED_TABS.forEach(key => {
+      const btn = TABS[key] && TABS[key].btn;
+      if (!btn) return;
+      btn.classList.add('tab-disabled');
+      btn.title = t('demoDisabledTooltip');
+    });
+    updateTableStatsBatchUI();
+    // Whole elements the demo build removes outright (the Report button,
+    // Scheduler/Job Failures, Account Security, and four Ops tab cards) --
+    // see dashboard.html's data-demo-hide attribute on each. Alert Log
+    // Analysis is deliberately NOT among these: that card stays visible
+    // with a "not supported in the demo version" note instead (see
+    // renderAlertLog() in cards.js), since it was asked to be commented on
+    // rather than removed.
+    document.querySelectorAll('[data-demo-hide]').forEach(el => { el.hidden = true; });
+  }
+
+  // Auto-refresh timers, each gated by shouldAutoRefresh() so a hidden
+  // browser tab, a non-leader duplicate OraPulse tab, or a currently
+  // inactive app tab (e.g. viewing Main while Ops's timer ticks) all skip
+  // the actual fetch instead of running it needlessly.
+  const OPS_REFRESH_MS = 5 * 60000;
+  const TUNING_REFRESH_MS = 10 * 60000;
+  const autoRefreshTimers = [
+    setInterval(() => { if (shouldAutoRefresh('main')) loadSessionsStatus(); }, SESSIONS_REFRESH_MS),
+    setInterval(() => { if (shouldAutoRefresh('main')) loadResourcesStatus(); }, RESOURCES_REFRESH_MS),
+    setInterval(() => { if (shouldAutoRefresh('main')) loadInstanceStatus(); }, INSTANCE_REFRESH_MS),
+    setInterval(() => { if (shouldAutoRefresh('ops')) loadOpsUsage(); }, OPS_REFRESH_MS),
+    setInterval(() => { if (shouldAutoRefresh('tuning')) loadTuningCheck(); }, TUNING_REFRESH_MS)
+  ];
+
+  // Ends the DB session (and stops the Weekly DB Health Report's background
+  // collector) when the browser tab/window actually closes -- not just when
+  // Disconnect is clicked. `pagehide` also fires on an in-app reload or
+  // navigation, which looks identical to a real close at this point in
+  // time, so this doesn't disconnect directly -- it tells the server "start
+  // a few-second countdown," and any further request from this page (this
+  // same reload re-fetching /api/db-status-*, for example) cancels that
+  // countdown server-side. Only a real close, with no follow-up request,
+  // lets it run out. sendBeacon (rather than fetch) is used because it's
+  // designed to reliably deliver a request that starts as the page is being
+  // torn down.
+  window.addEventListener('pagehide', () => {
+    navigator.sendBeacon('/api/browser-closing');
+  });
+
+  // --- Weekly DB Health Report (Report button, next to Refresh) ---
+  // Clicking Report asks for a filename first (client-side prompt(), so the
+  // event order is exactly "click -> name the file -> then generate"), then
+  // POSTs to /api/generate-report. The server saves the generated HTML
+  // straight to disk next to the running app (report/<YYYY-MM-DD>/<name>)
+  // and replies with where it landed -- there is no browser download step
+  // here at all, since that depended on the browser's own download/Save-As
+  // handling actually completing, which wasn't reliable.
+  function defaultReportFilename() {
+    const d = new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+    return `orapulse-report-${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}.html`;
+  }
+
+  reportBtn.addEventListener('click', async () => {
+    let filename = window.prompt(t('reportFilenamePrompt'), defaultReportFilename());
+    if (filename === null) return; // user cancelled the prompt
+    filename = filename.trim() || defaultReportFilename();
+    if (!/\.html?$/i.test(filename)) filename += '.html';
+
+    reportBtn.disabled = true;
+    reportBtn.textContent = t('reportGeneratingLabel');
+
     try {
-      const saved = localStorage.getItem('orapulseTheme');
-      return saved === 'dark' ? 'dark' : 'light';
+      const res = await fetch('/api/generate-report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ days: 7, lang: currentLang, filename })
+      });
+
+      if (res.status === 401) {
+        window.location.href = '/';
+        return;
+      }
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.success) {
+        showToast(t('reportFailedToast', { msg: data.message || `HTTP ${res.status}` }), 'error');
+        return;
+      }
+
+      showToast(t('reportGeneratedToast', { path: data.path }), 'ok');
+    } catch (err) {
+      showToast(t('reportFailedToast', { msg: err.message }), 'error');
+    } finally {
+      reportBtn.disabled = false;
+      reportBtn.textContent = t('btnReport');
+    }
+  });
+
+  // Status / Machine / Program filter (select boxes) for the current session list - filters instantly on the client without a server round-trip
+  const filterStatusSelect = document.getElementById('filterStatus');
+  const filterMachineSelect = document.getElementById('filterMachine');
+  const filterProgramSelect = document.getElementById('filterProgram');
+  const filterResetBtn = document.getElementById('filterResetBtn');
+
+  filterStatusSelect.addEventListener('change', applySessionFilters);
+  filterMachineSelect.addEventListener('change', applySessionFilters);
+  filterProgramSelect.addEventListener('change', applySessionFilters);
+  filterResetBtn.addEventListener('click', () => {
+    filterStatusSelect.value = '';
+    filterMachineSelect.value = '';
+    filterProgramSelect.value = '';
+    applySessionFilters();
+  });
+
+  // Clicking a session row in the current session list shows wait detail info (gv$session) +
+  // if applicable, file/block object (dba_extents) lookup results in a modal.
+  const sessionDetailBackdrop = document.getElementById('sessionDetailBackdrop');
+  const sessionDetailTitle = document.getElementById('sessionDetailTitle');
+  const sessionDetailBody = document.getElementById('sessionDetailBody');
+  const sessionDetailClose = document.getElementById('sessionDetailClose');
+  const boxSessionList = document.getElementById('box-sessionlist');
+
+  function closeSessionDetail() {
+    sessionDetailBackdrop.classList.remove('show');
+    sessionDetailBody.innerHTML = '';
+  }
+
+  sessionDetailClose.addEventListener('click', closeSessionDetail);
+  sessionDetailBackdrop.addEventListener('click', (e) => {
+    if (e.target === sessionDetailBackdrop) closeSessionDetail();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && sessionDetailBackdrop.classList.contains('show')) closeSessionDetail();
+  });
+
+  // Since box-sessionlist's content is entirely replaced via innerHTML on every refresh,
+  // the click event is delegated to the box itself (a fixed element) so listeners don't need to be reattached each time.
+  boxSessionList.addEventListener('click', (e) => {
+    const tr = e.target.closest('tr.clickable-row');
+    if (!tr) return;
+    const sid = tr.getAttribute('data-sid');
+    if (sid) openSessionDetail(sid);
+  });
+
+  // Right-clicking (or, on a touchscreen, long-pressing) a
+  // row in the current session list opens a context menu with two actions:
+  // "View Running Query" (looks up the session's current SQL_ID in v$sql)
+  // and "Kill Session (IMMEDIATE)", which runs ALTER SYSTEM KILL SESSION ...
+  // IMMEDIATE for that SID/SERIAL#. Same delegated-event pattern as the
+  // Table Statistics Collection context menu above, since box-sessionlist's
+  // content is also entirely replaced via innerHTML on every refresh.
+  const sessionCtxMenu = document.getElementById('sessionCtxMenu');
+  const sessionCtxMenuTitle = document.getElementById('sessionCtxMenuTitle');
+  const sessionCtxMenuQuery = document.getElementById('sessionCtxMenuQuery');
+  const sessionCtxMenuKill = document.getElementById('sessionCtxMenuKill');
+  let sessionCtxTarget = null; // { sid, serial, sqlId }
+
+  function closeSessionCtxMenu() {
+    sessionCtxMenu.classList.remove('show');
+    sessionCtxTarget = null;
+  }
+
+  function openSessionCtxMenu(x, y, sid, serial, sqlId) {
+    // The demo build disables this menu entirely (both "View Running
+    // Query" and "Kill Session"), rather than disabling each item --
+    // left-click's "wait detail" view (openSessionDetail(), a plain read)
+    // is unaffected and stays fully usable in demo mode.
+    if (isDemoMode) return;
+    sessionCtxTarget = { sid, serial, sqlId: sqlId || '' };
+    sessionCtxMenuTitle.textContent = t('sidSerialTitle', { sid, serial });
+    sessionCtxMenuQuery.disabled = !sqlId;
+    sessionCtxMenuQuery.textContent = sqlId ? t('viewRunningQuery') : t('viewRunningQueryDisabled');
+    sessionCtxMenuKill.disabled = false;
+    sessionCtxMenuKill.textContent = t('killSessionImmediate');
+    sessionCtxMenu.classList.add('show');
+    const menuW = sessionCtxMenu.offsetWidth || 240;
+    const menuH = sessionCtxMenu.offsetHeight || 80;
+    const left = Math.min(x, window.innerWidth - menuW - 8);
+    const top = Math.min(y, window.innerHeight - menuH - 8);
+    sessionCtxMenu.style.left = `${Math.max(8, left)}px`;
+    sessionCtxMenu.style.top = `${Math.max(8, top)}px`;
+  }
+
+  // --- Long-press support for touch devices ---
+  // On a desktop browser, right-clicking a row fires the native
+  // 'contextmenu' DOM event, handled below. A touch-only device (phone/
+  // tablet browser) has no right mouse button, so the same menu is opened
+  // by a long-press instead. Rather than relying on a given mobile
+  // browser's own synthesized 'contextmenu' event from a long touch
+  // (inconsistent across browsers/devices), this tracks the press itself
+  // with touchstart/touchmove/touchend timers, and a "firedByTouch" flag
+  // suppresses a real 'contextmenu' the browser might *also* dispatch
+  // right after, so the menu isn't opened twice.
+  function watchLongPress(boxEl, rowSelector, onLongPress) {
+    const LONG_PRESS_MS = 500;
+    const MOVE_TOLERANCE_PX = 12;
+    let timer = null;
+    let startX = 0;
+    let startY = 0;
+
+    boxEl.addEventListener('touchstart', (e) => {
+      const tr = e.target.closest(rowSelector);
+      if (!tr || e.touches.length !== 1) return;
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
+      timer = setTimeout(() => {
+        timer = null;
+        if (navigator.vibrate) { try { navigator.vibrate(15); } catch (_) { /* not supported, ignore */ } }
+        onLongPress(tr, startX, startY);
+      }, LONG_PRESS_MS);
+    }, { passive: true });
+
+    boxEl.addEventListener('touchmove', (e) => {
+      if (!timer) return;
+      const t = e.touches[0];
+      if (Math.abs(t.clientX - startX) > MOVE_TOLERANCE_PX || Math.abs(t.clientY - startY) > MOVE_TOLERANCE_PX) {
+        clearTimeout(timer);
+        timer = null;
+      }
+    }, { passive: true });
+
+    const cancelTimer = () => { if (timer) { clearTimeout(timer); timer = null; } };
+    boxEl.addEventListener('touchend', cancelTimer);
+    boxEl.addEventListener('touchcancel', cancelTimer);
+  }
+
+  let sessionCtxFiredByTouch = false;
+
+  watchLongPress(boxSessionList, 'tr.clickable-row', (tr, x, y) => {
+    sessionCtxFiredByTouch = true;
+    openSessionCtxMenu(
+      x, y,
+      tr.getAttribute('data-sid'),
+      tr.getAttribute('data-serial'),
+      tr.getAttribute('data-sqlid')
+    );
+  });
+
+  boxSessionList.addEventListener('contextmenu', (e) => {
+    const tr = e.target.closest('tr.clickable-row');
+    if (!tr) return;
+    e.preventDefault();
+    // If our own long-press timer already opened the menu for this touch,
+    // don't reopen/reposition it a second time for a following synthesized
+    // 'contextmenu' event.
+    if (sessionCtxFiredByTouch) {
+      sessionCtxFiredByTouch = false;
+      return;
+    }
+    openSessionCtxMenu(
+      e.clientX, e.clientY,
+      tr.getAttribute('data-sid'),
+      tr.getAttribute('data-serial'),
+      tr.getAttribute('data-sqlid')
+    );
+  });
+
+  document.addEventListener('click', (e) => {
+    if (sessionCtxMenu.classList.contains('show') && !sessionCtxMenu.contains(e.target)) {
+      closeSessionCtxMenu();
+    }
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && sessionCtxMenu.classList.contains('show')) closeSessionCtxMenu();
+  });
+  window.addEventListener('scroll', closeSessionCtxMenu, true);
+
+  sessionCtxMenuQuery.addEventListener('click', () => {
+    if (!sessionCtxTarget || !sessionCtxTarget.sqlId) return;
+    const { sid, sqlId } = sessionCtxTarget;
+    closeSessionCtxMenu();
+    openSessionQueryDetail(sid, sqlId);
+  });
+
+  sessionCtxMenuKill.addEventListener('click', async () => {
+    if (!sessionCtxTarget) return;
+    const { sid, serial } = sessionCtxTarget;
+    if (!confirm(t('confirmKillSession', { sid, serial }))) {
+      closeSessionCtxMenu();
+      return;
+    }
+    sessionCtxMenuKill.disabled = true;
+    sessionCtxMenuKill.textContent = t('killingLabel');
+    try {
+      const res = await fetch('/api/kill-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sid: Number(sid), serial: Number(serial) })
+      });
+      if (res.status === 401) {
+        window.location.href = '/';
+        return;
+      }
+      const data = await res.json();
+      showToast(data.message, data.success ? 'ok' : 'error');
+      if (data.success) {
+        // Refresh the session list/count/blocking sessions so they
+        // reflect the session being gone -- CPU/memory/instance info are
+        // unaffected by a kill, so no need to refetch those too.
+        loadSessionsStatus();
+      }
+    } catch (err) {
+      showToast(t('killSessionRequestFailed', { msg: err.message }), 'error');
+    } finally {
+      closeSessionCtxMenu();
+    }
+  });
+
+  function renderSessionWaitRows(rows) {
+    return rows.map(r => `
+      <tr>
+        <td>${escapeHtml(r.INST_ID)}</td>
+        <td>${escapeHtml(r.SID)}</td>
+        <td>${escapeHtml(r.SERIAL_NUM)}</td>
+        <td>${escapeHtml(r.SQL_ID || '-')}</td>
+        <td>${escapeHtml(r.EVENT || '-')}</td>
+        <td>${escapeHtml(r.STATE || '-')}</td>
+        <td>${escapeHtml(r.SECONDS_IN_WAIT)}</td>
+        <td>${escapeHtml(r.P1TEXT || '-')}</td>
+        <td>${escapeHtml(r.P1)}</td>
+        <td>${escapeHtml(r.P2TEXT || '-')}</td>
+        <td>${escapeHtml(r.P2)}</td>
+        <td>${escapeHtml(r.P3TEXT || '-')}</td>
+        <td>${escapeHtml(r.P3)}</td>
+        <td>${escapeHtml(r.ROW_WAIT_OBJ ?? '-')}</td>
+        <td>${escapeHtml(r.ROW_WAIT_FILE ?? '-')}</td>
+        <td>${escapeHtml(r.ROW_WAIT_BLOCK ?? '-')}</td>
+        <td>${escapeHtml(r.BLOCKING_INSTANCE ?? '-')}</td>
+        <td>${escapeHtml(r.BLOCKING_SESSION ?? '-')}</td>
+      </tr>`).join('');
+  }
+
+  function renderBlockObjectRows(rows) {
+    return rows.map(r => `
+      <tr>
+        <td>${escapeHtml(r.OWNER)}</td>
+        <td>${escapeHtml(r.SEGMENT_NAME)}</td>
+        <td>${escapeHtml(r.PARTITION_NAME || '-')}</td>
+        <td>${escapeHtml(r.SEGMENT_TYPE)}</td>
+        <td>${escapeHtml(r.TABLESPACE_NAME)}</td>
+        <td>${escapeHtml(r.RELATIVE_FNO)}</td>
+        <td>${escapeHtml(r.EXTENT_START_BLOCK)}</td>
+        <td>${escapeHtml(r.EXTENT_END_BLOCK)}</td>
+        <td>${escapeHtml(r.BLOCK_OFFSET)}</td>
+      </tr>`).join('');
+  }
+
+  async function loadBlockObjectSection(fileNo, blockNo) {
+    const sectionId = 'blockObjectSection';
+    const existing = document.getElementById(sectionId);
+    if (existing) existing.remove();
+
+    const section = document.createElement('div');
+    section.className = 'modal-section';
+    section.id = sectionId;
+    const sectionTitle = t('fileBlockLookupTitle', { file: escapeHtml(fileNo), block: escapeHtml(blockNo) });
+    section.innerHTML = `
+      <div class="modal-section-title">${sectionTitle}</div>
+      <div class="skeleton">${t('loadingLabel')}</div>`;
+    sessionDetailBody.appendChild(section);
+
+    try {
+      const res = await fetch(`/api/block-object?fileno=${encodeURIComponent(fileNo)}&blockno=${encodeURIComponent(blockNo)}`);
+      if (res.status === 401) {
+        window.location.href = '/';
+        return;
+      }
+      const data = await res.json();
+      if (!data.success) {
+        section.innerHTML = `
+          <div class="modal-section-title">${sectionTitle}</div>
+          <div class="empty-msg">${escapeHtml(data.message)}</div>`;
+        return;
+      }
+      if (!data.data.length) {
+        section.innerHTML = `
+          <div class="modal-section-title">${sectionTitle}</div>
+          <div class="empty-msg">${t('noObjectFound')}</div>`;
+        return;
+      }
+      section.innerHTML = `
+        <div class="modal-section-title">${sectionTitle}</div>
+        <div class="sess-table-wrap">
+          <table class="sess-table">
+            <thead><tr>
+              <th>${t('ownerHeader')}</th><th>${t('segmentNameHeader')}</th><th>${t('partitionNameHeader')}</th>
+              <th>${t('segmentTypeHeader')}</th><th>${t('tablespaceNameHeader')}</th><th>${t('relativeFnoHeader')}</th>
+              <th>${t('extentStartBlockHeader')}</th><th>${t('extentEndBlockHeader')}</th><th>${t('blockOffsetHeader')}</th>
+            </tr></thead>
+            <tbody>${renderBlockObjectRows(data.data)}</tbody>
+          </table>
+        </div>`;
+    } catch (err) {
+      section.innerHTML = `
+        <div class="modal-section-title">${sectionTitle}</div>
+        <div class="empty-msg">${t('fileBlockLookupFailed', { msg: escapeHtml(err.message) })}</div>`;
+    }
+  }
+
+  async function openSessionDetail(sid) {
+    sessionDetailTitle.textContent = t('sessionDetailTitleWithSid', { sid });
+    sessionDetailBody.innerHTML = `<div class="skeleton">${t('loadingLabel')}</div>`;
+    sessionDetailBackdrop.classList.add('show');
+
+    try {
+      const res = await fetch(`/api/session-wait-detail?sid=${encodeURIComponent(sid)}`);
+      if (res.status === 401) {
+        window.location.href = '/';
+        return;
+      }
+      const data = await res.json();
+      if (!data.success) {
+        sessionDetailBody.innerHTML = `<div class="empty-msg">${escapeHtml(data.message)}</div>`;
+        return;
+      }
+      if (!data.data.length) {
+        sessionDetailBody.innerHTML = `<div class="empty-msg">${t('sessionNotFound')}</div>`;
+        return;
+      }
+
+      sessionDetailBody.innerHTML = `
+        <div class="modal-section">
+          <div class="modal-section-title">${t('waitSessionDetailTitle')}</div>
+          <div class="sess-table-wrap">
+            <table class="sess-table">
+              <thead><tr>
+                <th>${t('instIdHeader')}</th><th>SID</th><th>SERIAL#</th><th>SQL_ID</th><th>${t('eventHeader')}</th><th>${t('stateHeader')}</th>
+                <th>${t('secondsInWaitHeader')}</th><th>P1 Text</th><th>P1</th><th>P2 Text</th><th>P2</th>
+                <th>P3 Text</th><th>P3</th><th>Row Wait Obj#</th><th>Row Wait File#</th>
+                <th>Row Wait Block#</th><th>${t('blockingInstHeader')}</th><th>${t('blockingSessionColHeader')}</th>
+              </tr></thead>
+              <tbody>${renderSessionWaitRows(data.data)}</tbody>
+            </table>
+          </div>
+        </div>`;
+
+      // Using the first row's P1(FILE_NO) / P2(BLOCK_NO) values, proceed to look up the file/block object.
+      // (Whether P1/P2 actually represent file#/block# can vary depending on the wait event type.)
+      const first = data.data[0];
+      const fileNo = Number(first.P1);
+      const blockNo = Number(first.P2);
+      if (Number.isInteger(fileNo) && fileNo > 0 && Number.isInteger(blockNo) && blockNo >= 0) {
+        loadBlockObjectSection(fileNo, blockNo);
+      } else {
+        const note = document.createElement('div');
+        note.className = 'modal-section';
+        note.innerHTML = `<div class="empty-msg">${t('p1p2NotFileBlock', { p1: escapeHtml(first.P1 ?? '-'), p2: escapeHtml(first.P2 ?? '-') })}</div>`;
+        sessionDetailBody.appendChild(note);
+      }
+    } catch (err) {
+      sessionDetailBody.innerHTML = `<div class="empty-msg">${t('sessionDetailLoadFailed', { msg: escapeHtml(err.message) })}</div>`;
+    }
+  }
+
+  // Triggered from the "View Running Query" item in the session list's
+  // context menu. Reuses the same session-detail modal as openSessionDetail()
+  // above, just with different content: the SQL_ID's full text and a few
+  // execution-stat columns from v$sql.
+  // sid is optional: pass a SID when opened from the session list's "View
+  // Running Query" context menu item (so the title reads "Running Query
+  // (SID: ...)"), or omit it (null) when opened by SQL_ID alone -- e.g. from
+  // the Recovery tab's Recent DML table -- in which case the title reads
+  // "SQL Text (SQL_ID: ...)" instead. Either way the lookup itself is the
+  // same /api/session-sql call keyed only by sqlId.
+  async function openSessionQueryDetail(sid, sqlId) {
+    sessionDetailTitle.textContent = sid != null ? t('runningQueryTitleWithSid', { sid }) : t('sqlTextTitleWithId', { sqlId });
+    sessionDetailBody.innerHTML = `<div class="skeleton">${t('loadingLabel')}</div>`;
+    sessionDetailBackdrop.classList.add('show');
+
+    try {
+      const res = await fetch(`/api/session-sql?sqlId=${encodeURIComponent(sqlId)}`);
+      if (res.status === 401) {
+        window.location.href = '/';
+        return;
+      }
+      const data = await res.json();
+      if (!data.success) {
+        sessionDetailBody.innerHTML = `<div class="empty-msg">${escapeHtml(data.message)}</div>`;
+        return;
+      }
+      if (!data.data.length) {
+        sessionDetailBody.innerHTML = `<div class="empty-msg">${t('sqlTextNotCached', { sqlId: escapeHtml(sqlId) })}</div>`;
+        return;
+      }
+
+      const row = data.data[0];
+      sessionDetailBody.innerHTML = `
+        <div class="modal-section">
+          <div class="modal-section-title">${t('sqlIdTitle', { id: escapeHtml(row.SQL_ID) })}</div>
+          <div class="sql-meta-row">
+            <span><b>${t('labelParsingSchema')}:</b> ${escapeHtml(row.PARSING_SCHEMA_NAME || '-')}</span>
+            <span><b>${t('labelExecutions')}:</b> ${escapeHtml(row.EXECUTIONS ?? '-')}</span>
+            <span><b>${t('labelElapsed')}:</b> ${row.ELAPSED_SEC != null ? Number(row.ELAPSED_SEC).toLocaleString() + ' ' + t('secUnit') : '-'}</span>
+            <span><b>${t('labelCpu')}:</b> ${row.CPU_SEC != null ? Number(row.CPU_SEC).toLocaleString() + ' ' + t('secUnit') : '-'}</span>
+            <span><b>${t('labelLastActive')}:</b> ${escapeHtml(row.LAST_ACTIVE_TIME || '-')}</span>
+          </div>
+          <div class="sql-text-block">${escapeHtml(row.SQL_TEXT || t('sqlTextEmptyPlaceholder'))}</div>
+          <div class="info-note">${t('sqlSourceNote')}</div>
+        </div>`;
+
+      // Second section, loaded after the SQL text above has already
+      // rendered: a formatted copy of the same SQL, its execution plan, and
+      // a rule-based analysis of that plan. Same shared modal regardless of
+      // where it was opened from (Ops tab's Top SQL cards, Tuning tab's Slow
+      // SQL, Recovery's Recent DML, the session list's "View Running Query").
+      loadSqlPlanSection(sqlId);
+    } catch (err) {
+      sessionDetailBody.innerHTML = `<div class="empty-msg">${t('sqlTextLoadFailed', { msg: escapeHtml(err.message) })}</div>`;
+    }
+  }
+
+  // Bytes are shown at whatever unit keeps the number readable (matching
+  // how DBMS_XPLAN itself scales its own plan output), since a plan mixes
+  // steps ranging from a few rows to many gigabytes.
+  function fmtPlanBytes(bytes) {
+    const n = Number(bytes);
+    if (!Number.isFinite(n) || n <= 0) return '-';
+    if (n >= 1024 * 1024 * 1024) return (n / (1024 * 1024 * 1024)).toFixed(2) + ' GB';
+    if (n >= 1024 * 1024) return (n / (1024 * 1024)).toFixed(2) + ' MB';
+    if (n >= 1024) return (n / 1024).toFixed(1) + ' KB';
+    return n + ' B';
+  }
+
+  // One row per plan step, indented by DEPTH so the tree shape reads the
+  // same way DBMS_XPLAN's own text output does, even though this table is
+  // built straight from V$SQL_PLAN columns instead.
+  function renderPlanRows(plan) {
+    return (plan || []).map(r => {
+      const depth = Number(r.DEPTH) || 0;
+      const indent = '   '.repeat(depth);
+      const opLabel = r.OPTIONS ? `${r.OPERATION} (${r.OPTIONS})` : (r.OPERATION || '-');
+      const objName = r.OBJECT_NAME ? (r.OBJECT_OWNER ? `${r.OBJECT_OWNER}.${r.OBJECT_NAME}` : r.OBJECT_NAME) : '-';
+      const predicate = r.ACCESS_PREDICATES || r.FILTER_PREDICATES || '';
+      return `
+        <tr>
+          <td>${r.ID}</td>
+          <td class="plan-op">${indent}${escapeHtml(opLabel)}</td>
+          <td>${escapeHtml(objName)}</td>
+          <td>${r.CARDINALITY != null ? Math.round(r.CARDINALITY).toLocaleString() : '-'}</td>
+          <td>${r.BYTES != null ? fmtPlanBytes(r.BYTES) : '-'}</td>
+          <td>${r.COST != null ? Math.round(r.COST).toLocaleString() : '-'}</td>
+          <td class="plan-predicate">${predicate ? escapeHtml(predicate) : '-'}</td>
+        </tr>`;
+    }).join('');
+  }
+
+  const PLAN_RULE_TITLE_KEY = {
+    plan_full_table_scan: 'planRuleFullTableScanTitle',
+    plan_cartesian_join: 'planRuleCartesianJoinTitle',
+    plan_nested_loop_large: 'planRuleNestedLoopLargeTitle',
+    plan_large_sort: 'planRuleLargeSortTitle',
+    plan_top_cost_step: 'planRuleTopCostStepTitle',
+  };
+
+  // Turns one occurrence (one plan row) of a grouped finding into its
+  // localized message -- a rule can fire on more than one step (e.g. two
+  // separate full table scans in the same plan), each rendered as its own
+  // line within that rule's card.
+  function planFindingLine(ruleId, row) {
+    const objectLabel = row.objectName ? (row.objectOwner ? `${row.objectOwner}.${row.objectName}` : row.objectName) : '-';
+    switch (ruleId) {
+      case 'plan_full_table_scan':
+        return t('planRuleFullTableScanMsg', {
+          id: row.id, object: objectLabel,
+          rows: row.cardinality != null ? Math.round(row.cardinality).toLocaleString() : '?',
+        });
+      case 'plan_cartesian_join':
+        return t('planRuleCartesianJoinMsg', {
+          id: row.id, operation: row.options ? `${row.operation} ${row.options}` : (row.operation || '-'),
+        });
+      case 'plan_nested_loop_large':
+        return t('planRuleNestedLoopLargeMsg', {
+          id: row.id, rows: row.cardinality != null ? Math.round(row.cardinality).toLocaleString() : '?',
+        });
+      case 'plan_large_sort':
+        return t('planRuleLargeSortMsg', {
+          id: row.id, operation: row.operation || '-', options: row.options || '', bytes: fmtPlanBytes(row.bytes),
+        });
+      default:
+        return '';
+    }
+  }
+
+  function renderPlanFindings(findings) {
+    if (!findings || !findings.length) {
+      return `<div class="empty-msg tuning-clean">${t('sqlPlanNoFindings')}</div>`;
+    }
+    return `<div class="tuning-list">${findings.map(f => {
+      let bodyHtml;
+      if (f.ruleId === 'plan_top_cost_step' && f.step) {
+        const s = f.step;
+        const objectLabel = s.objectName ? (s.objectOwner ? `${s.objectOwner}.${s.objectName}` : s.objectName) : (s.operation || '-');
+        bodyHtml = `<div class="tuning-item-msg">${escapeHtml(t('planRuleTopCostStepMsg', {
+          id: s.id, operation: s.operation || '-', object: objectLabel, pct: s.costPct,
+        }))}</div>`;
+      } else {
+        bodyHtml = (f.rows || [])
+          .map(row => `<div class="tuning-item-msg">${escapeHtml(planFindingLine(f.ruleId, row))}</div>`)
+          .join('');
+      }
+      return `
+        <div class="tuning-item">
+          <div class="tuning-item-head">
+            ${tuningSevBadge(f.severity)}
+            <span class="tuning-item-title">${escapeHtml(t(PLAN_RULE_TITLE_KEY[f.ruleId] || f.ruleId))}</span>
+          </div>
+          ${bodyHtml}
+        </div>`;
+    }).join('')}</div>`;
+  }
+
+  // Appended as a second modal-section under the SQL text one, once
+  // /api/sql-plan resolves -- same lazy-secondary-section pattern as
+  // loadBlockObjectSection() above (the primary section renders first, this
+  // one fills in once its own request completes).
+  async function loadSqlPlanSection(sqlId) {
+    const sectionId = 'sqlPlanSection';
+    const existing = document.getElementById(sectionId);
+    if (existing) existing.remove();
+
+    const section = document.createElement('div');
+    section.className = 'modal-section';
+    section.id = sectionId;
+    section.innerHTML = `
+      <div class="modal-section-title">${t('sqlPlanSectionTitle')}</div>
+      <div class="skeleton">${t('loadingLabel')}</div>`;
+    sessionDetailBody.appendChild(section);
+
+    try {
+      const res = await fetch(`/api/sql-plan?sqlId=${encodeURIComponent(sqlId)}`);
+      if (res.status === 401) {
+        window.location.href = '/';
+        return;
+      }
+      const data = await res.json();
+      if (!data.success) {
+        section.innerHTML = `
+          <div class="modal-section-title">${t('sqlPlanSectionTitle')}</div>
+          <div class="empty-msg">${escapeHtml(data.message)}</div>`;
+        return;
+      }
+      if (!data.found) {
+        section.innerHTML = `
+          <div class="modal-section-title">${t('sqlPlanSectionTitle')}</div>
+          <div class="empty-msg">${t('sqlPlanNotCached')}</div>`;
+        return;
+      }
+
+      section.innerHTML = `
+        <div class="modal-section-title">${t('sqlPlanSectionTitle')}</div>
+        <div class="modal-subsection">
+          <div class="modal-subsection-title">${t('sqlFormattedTitle')}</div>
+          <div class="sql-text-block">${escapeHtml(data.formattedSql || t('sqlTextEmptyPlaceholder'))}</div>
+        </div>
+        <div class="modal-subsection">
+          <div class="modal-subsection-title">${t('sqlPlanTitle')}</div>
+          <div class="sess-table-wrap"><table class="sess-table plan-table">
+            <thead><tr>
+              <th>${t('planColId')}</th><th>${t('planColOperation')}</th><th>${t('planColObject')}</th>
+              <th>${t('planColRows')}</th><th>${t('planColBytes')}</th><th>${t('planColCost')}</th><th>${t('planColPredicate')}</th>
+            </tr></thead>
+            <tbody>${renderPlanRows(data.plan)}</tbody>
+          </table></div>
+          <div class="info-note">${t('sqlPlanNote')}</div>
+        </div>
+        <div class="modal-subsection">
+          <div class="modal-subsection-title">${t('sqlPlanAnalysisTitle')}</div>
+          ${renderPlanFindings(data.findings)}
+        </div>`;
+    } catch (err) {
+      section.innerHTML = `
+        <div class="modal-section-title">${t('sqlPlanSectionTitle')}</div>
+        <div class="empty-msg">${t('sqlPlanLoadFailed', { msg: escapeHtml(err.message) })}</div>`;
+    }
+  }
+
+  // Triggered from the "View Table Properties" item in the Table Statistics
+  // Collection screen's context menu. Reuses the same session-detail modal
+  // as openSessionDetail()/openSessionQueryDetail() above, just with a
+  // basic-info/columns/indexes layout. Each of the three sections is
+  // rendered (or shown as failed) independently, matching the backend's
+  // per-section ok/message shape.
+  const TABLE_PROPERTIES_LENGTHED_TYPES = ['VARCHAR2', 'CHAR', 'NVARCHAR2', 'NCHAR', 'RAW'];
+  function renderTablePropertiesColumnRows(columns) {
+    return columns.map(col => {
+      let typeSuffix = '';
+      if (col.DATA_PRECISION != null) {
+        typeSuffix = `(${col.DATA_PRECISION}${col.DATA_SCALE ? ',' + col.DATA_SCALE : ''})`;
+      } else if (col.DATA_LENGTH != null && TABLE_PROPERTIES_LENGTHED_TYPES.includes(col.DATA_TYPE)) {
+        typeSuffix = `(${col.DATA_LENGTH})`;
+      }
+      return `
+      <tr>
+        <td>${col.COLUMN_ID}</td>
+        <td>${escapeHtml(col.COLUMN_NAME)}</td>
+        <td>${escapeHtml(col.DATA_TYPE)}${typeSuffix}</td>
+        <td>${col.NULLABLE === 'N' ? t('notNullLabel') : t('nullableLabel')}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  function renderTablePropertiesIndexRows(indexes) {
+    return indexes.map(idx => `
+      <tr>
+        <td>${escapeHtml(idx.INDEX_NAME)}</td>
+        <td>${escapeHtml(idx.UNIQUENESS)}</td>
+        <td>${escapeHtml(idx.STATUS)}</td>
+        <td>${escapeHtml(idx.COLUMNS || '-')}</td>
+      </tr>`).join('');
+  }
+
+  async function openTablePropertiesModal(owner, tableName, partitionName) {
+    const label = partitionName ? `${owner}.${tableName} (${partitionName})` : `${owner}.${tableName}`;
+    sessionDetailTitle.textContent = t('tablePropertiesTitleWithName', { name: label });
+    sessionDetailBody.innerHTML = `<div class="skeleton">${t('loadingLabel')}</div>`;
+    sessionDetailBackdrop.classList.add('show');
+
+    try {
+      const res = await fetch(`/api/table-properties?owner=${encodeURIComponent(owner)}&tableName=${encodeURIComponent(tableName)}`);
+      if (res.status === 401) {
+        window.location.href = '/';
+        return;
+      }
+      const data = await res.json();
+      if (!data.success) {
+        sessionDetailBody.innerHTML = `<div class="empty-msg">${escapeHtml(data.message)}</div>`;
+        return;
+      }
+
+      const basicSection = (() => {
+        if (!data.basic.ok) return `<div class="empty-msg">${escapeHtml(data.basic.message)}</div>`;
+        const b = data.basic.data;
+        if (!b) return `<div class="empty-msg">${t('tablePropertiesNotFound')}</div>`;
+        return `
+          <div class="sql-meta-row">
+            <span><b>${t('tablespaceNameHeader')}:</b> ${escapeHtml(b.TABLESPACE_NAME || '-')}</span>
+            <span><b>${t('tablePropertiesPartitioned')}:</b> ${escapeHtml(b.PARTITIONED || '-')}</span>
+            <span><b>${t('numRowsHeader')}:</b> ${b.NUM_ROWS == null ? '-' : Number(b.NUM_ROWS).toLocaleString()}</span>
+            <span><b>${t('blocksHeader')}:</b> ${b.BLOCKS == null ? '-' : Number(b.BLOCKS).toLocaleString()}</span>
+            <span><b>${t('tablePropertiesAvgRowLen')}:</b> ${b.AVG_ROW_LEN == null ? '-' : Number(b.AVG_ROW_LEN).toLocaleString()}</span>
+            <span><b>${t('tablePropertiesLogging')}:</b> ${escapeHtml(b.LOGGING || '-')}</span>
+            <span><b>${t('tablePropertiesCompression')}:</b> ${escapeHtml(b.COMPRESSION || '-')}</span>
+            <span><b>${t('tablePropertiesDegree')}:</b> ${escapeHtml(b.DEGREE || '-')}</span>
+            <span><b>${t('lastAnalyzedHeader')}:</b> ${escapeHtml(b.LAST_ANALYZED || t('noCollectionHistory'))}</span>
+          </div>`;
+      })();
+
+      const columnsSection = !data.columns.ok
+        ? `<div class="empty-msg">${escapeHtml(data.columns.message)}</div>`
+        : !data.columns.data.length
+          ? `<div class="empty-msg">${t('tablePropertiesNoColumns')}</div>`
+          : `<div class="sess-table-wrap">
+              <table class="sess-table">
+                <thead><tr><th>#</th><th>${t('tablePropertiesColumnName')}</th><th>${t('tablePropertiesDataType')}</th><th>${t('tablePropertiesNullable')}</th></tr></thead>
+                <tbody>${renderTablePropertiesColumnRows(data.columns.data)}</tbody>
+              </table>
+            </div>`;
+
+      const indexesSection = !data.indexes.ok
+        ? `<div class="empty-msg">${escapeHtml(data.indexes.message)}</div>`
+        : !data.indexes.data.length
+          ? `<div class="empty-msg">${t('tablePropertiesNoIndexes')}</div>`
+          : `<div class="sess-table-wrap">
+              <table class="sess-table">
+                <thead><tr><th>${t('tablePropertiesIndexName')}</th><th>${t('tablePropertiesUniqueness')}</th><th>${t('statusHeader')}</th><th>${t('tablePropertiesIndexColumns')}</th></tr></thead>
+                <tbody>${renderTablePropertiesIndexRows(data.indexes.data)}</tbody>
+              </table>
+            </div>`;
+
+      sessionDetailBody.innerHTML = `
+        <div class="modal-section">
+          <div class="modal-section-title">${t('tablePropertiesBasicInfoTitle')}</div>
+          ${basicSection}
+        </div>
+        <div class="modal-section">
+          <div class="modal-section-title">${t('tablePropertiesColumnsTitle')}</div>
+          ${columnsSection}
+        </div>
+        <div class="modal-section">
+          <div class="modal-section-title">${t('tablePropertiesIndexesTitle')}</div>
+          ${indexesSection}
+        </div>`;
+    } catch (err) {
+      sessionDetailBody.innerHTML = `<div class="empty-msg">${t('tablePropertiesLoadFailed', { msg: escapeHtml(err.message) })}</div>`;
+    }
+  }
+
+  // --- Object View tab: object explorer (left) + script viewer (right) ---
+  // Owners load lazily the first time this tab is opened (via TABS.objectview.load,
+  // same lazy pattern as Ops/Recovery); picking an owner loads its full object
+  // list once and caches it, and the type-select/text-filter inputs re-render
+  // the (already-grouped-by-type) tree from that cache without refetching.
+  // Clicking an object fetches its DBMS_METADATA DDL on demand.
+  const objectViewOwnerSelect = document.getElementById('objectViewOwnerSelect');
+  const objectViewTypeSelect = document.getElementById('objectViewTypeSelect');
+  const objectViewFilterInput = document.getElementById('objectViewFilterInput');
+  const objectViewTree = document.getElementById('objectViewTree');
+  const objectViewTitle = document.getElementById('objectViewTitle');
+  const objectViewCode = document.getElementById('objectViewCode');
+
+  let objectViewObjects = null; // cached /api/object-list result for the current owner
+  let objectViewSelectedKey = null; // `${owner}::${objectType}::${objectName}` of the active item
+
+  async function loadObjectViewOwners() {
+    setDot('objectview', 'loading');
+    try {
+      const res = await fetch('/api/table-owners');
+      if (res.status === 401) {
+        window.location.href = '/';
+        return;
+      }
+      const data = await res.json();
+      if (!data.success) {
+        setDot('objectview', 'error');
+        objectViewOwnerSelect.innerHTML = `<option value="">${t('tableOwnersLoadFailedOption')}</option>`;
+        return;
+      }
+      setDot('objectview', 'ok');
+      const options = data.data
+        .map(owner => `<option value="${escapeHtml(owner)}">${escapeHtml(owner)}</option>`)
+        .join('');
+      objectViewOwnerSelect.innerHTML = `<option value="">${t('selectUserPlaceholder')}</option>${options}`;
+    } catch (err) {
+      setDot('objectview', 'error');
+      objectViewTree.innerHTML = `<div class="empty-msg">${t('tableOwnersLoadFailedMsg', { msg: escapeHtml(err.message) })}</div>`;
+    }
+  }
+
+  function objectViewClearViewer() {
+    objectViewSelectedKey = null;
+    objectViewTitle.textContent = t('objectViewNoSelection');
+    objectViewCode.textContent = '';
+  }
+
+  async function loadObjectViewList(owner) {
+    objectViewObjects = null;
+    objectViewClearViewer();
+    objectViewTypeSelect.innerHTML = `<option value="">${t('filterAllOption', { label: t('filterLabelType') })}</option>`;
+    objectViewFilterInput.value = '';
+
+    if (!owner) {
+      objectViewTree.innerHTML = `<div class="empty-msg">${t('objectViewSelectPrompt')}</div>`;
+      return;
+    }
+
+    objectViewTree.innerHTML = `<div class="skeleton">${t('loadingLabel')}</div>`;
+    try {
+      const res = await fetch(`/api/object-list?owner=${encodeURIComponent(owner)}`);
+      if (res.status === 401) {
+        window.location.href = '/';
+        return;
+      }
+      const data = await res.json();
+      if (!data.success) {
+        setDot('objectview', 'error');
+        objectViewTree.innerHTML = `<div class="empty-msg">${escapeHtml(data.message)}</div>`;
+        return;
+      }
+      setDot('objectview', 'ok');
+      if (!data.data.length) {
+        objectViewTree.innerHTML = `<div class="empty-msg">${t('objectViewNoObjectsForOwner', { owner: escapeHtml(owner) })}</div>`;
+        return;
+      }
+      objectViewObjects = data.data;
+      populateFilterSelect(objectViewTypeSelect, data.data.map(o => o.OBJECT_TYPE), t('filterLabelType'));
+      objectViewTypeSelect.value = '';
+      renderObjectViewTree();
+      if (data.truncated) {
+        objectViewTree.insertAdjacentHTML(
+          'beforeend',
+          `<div class="sess-table-note">${t('objectViewTruncatedNote', { n: Number(data.totalCount).toLocaleString() })}</div>`
+        );
+      }
+    } catch (err) {
+      setDot('objectview', 'error');
+      objectViewTree.innerHTML = `<div class="empty-msg">${t('objectViewLoadFailedMsg', { msg: escapeHtml(err.message) })}</div>`;
+    }
+  }
+
+  function renderObjectViewTree() {
+    if (!objectViewObjects) return;
+    const owner = objectViewOwnerSelect.value;
+    const typeFilter = objectViewTypeSelect.value;
+    const textFilter = objectViewFilterInput.value.trim().toUpperCase();
+
+    const filtered = objectViewObjects.filter(o => {
+      if (typeFilter && o.OBJECT_TYPE !== typeFilter) return false;
+      if (textFilter && !o.OBJECT_NAME.toUpperCase().includes(textFilter)) return false;
+      return true;
+    });
+
+    if (!filtered.length) {
+      objectViewTree.innerHTML = `<div class="empty-msg">${t('objectViewNoMatch')}</div>`;
+      return;
+    }
+
+    const byType = new Map();
+    filtered.forEach(o => {
+      if (!byType.has(o.OBJECT_TYPE)) byType.set(o.OBJECT_TYPE, []);
+      byType.get(o.OBJECT_TYPE).push(o);
+    });
+
+    const groupsHtml = Array.from(byType.keys()).sort().map(type => {
+      const items = byType.get(type);
+      const itemsHtml = items.map(o => {
+        const key = `${owner}::${o.OBJECT_TYPE}::${o.OBJECT_NAME}`;
+        const isActive = key === objectViewSelectedKey;
+        const isInvalid = o.STATUS && o.STATUS !== 'VALID';
+        return `<button type="button" class="objectview-item${isActive ? ' active' : ''}${isInvalid ? ' invalid-status' : ''}"
+                  data-owner="${escapeHtml(owner)}" data-name="${escapeHtml(o.OBJECT_NAME)}" data-type="${escapeHtml(o.OBJECT_TYPE)}"
+                  title="${escapeHtml(o.OBJECT_NAME)} (${escapeHtml(o.STATUS || '-')})">${escapeHtml(o.OBJECT_NAME)}</button>`;
+      }).join('');
+      return `<details class="objectview-group" open>
+        <summary>${escapeHtml(type)} (${items.length})</summary>
+        ${itemsHtml}
+      </details>`;
+    }).join('');
+
+    objectViewTree.innerHTML = groupsHtml;
+  }
+
+  async function loadObjectViewDdl(owner, objectName, objectType) {
+    objectViewSelectedKey = `${owner}::${objectType}::${objectName}`;
+    objectViewTree.querySelectorAll('.objectview-item').forEach(btn => {
+      btn.classList.toggle(
+        'active',
+        btn.dataset.owner === owner && btn.dataset.name === objectName && btn.dataset.type === objectType
+      );
+    });
+    objectViewTitle.textContent = `${owner}.${objectName} (${objectType})`;
+    objectViewCode.textContent = t('loadingLabel');
+
+    try {
+      const res = await fetch(
+        `/api/object-ddl?owner=${encodeURIComponent(owner)}&objectName=${encodeURIComponent(objectName)}&objectType=${encodeURIComponent(objectType)}`
+      );
+      if (res.status === 401) {
+        window.location.href = '/';
+        return;
+      }
+      const data = await res.json();
+      if (!data.success) {
+        objectViewCode.textContent = data.message;
+        return;
+      }
+      objectViewCode.textContent = data.ddl;
+    } catch (err) {
+      objectViewCode.textContent = t('objectViewDdlLoadFailed', { msg: err.message });
+    }
+  }
+
+  objectViewOwnerSelect.addEventListener('change', () => loadObjectViewList(objectViewOwnerSelect.value));
+  objectViewTypeSelect.addEventListener('change', renderObjectViewTree);
+  objectViewFilterInput.addEventListener('input', renderObjectViewTree);
+
+  objectViewTree.addEventListener('click', (e) => {
+    const btn = e.target.closest('.objectview-item');
+    if (!btn) return;
+    loadObjectViewDdl(btn.dataset.owner, btn.dataset.name, btn.dataset.type);
+  });
+
+  logoutBtn.addEventListener('click', async () => {
+    logoutBtn.disabled = true;
+    autoRefreshTimers.forEach(clearInterval);
+    try {
+      await fetch('/api/logout', { method: 'POST' });
+    } catch (err) {
+      // Redirect to the login screen even if session termination fails
+    }
+    window.location.href = '/';
+  });
+
+  // Language switcher (English / Korean), to the right of the Disconnect
+  // button. Default language is English (see currentLang's fallback above);
+  // whichever language is picked here is persisted to localStorage so it's
+  // restored automatically next time the app is opened. Static markup is
+  // handled by applyStaticI18n() (data-i18n attributes); everything else is
+  // JS-rendered from cached data, which rerenderAll() re-runs so switching
+  // languages updates already-loaded cards immediately, without a server
+  // round-trip (except the one deliberate exception noted in rerenderAll()).
+  const langSelect = document.getElementById('langSelect');
+  langSelect.value = currentLang;
+  langSelect.addEventListener('change', () => {
+    currentLang = (langSelect.value === 'ko') ? 'ko' : 'en';
+    try {
+      localStorage.setItem('orapulseLang', currentLang);
     } catch (_) {
-      return 'light';
+      // localStorage can throw in some restricted browser contexts -- the
+      // language still applies for the rest of this session, it just won't
+      // be remembered on next launch.
     }
-  })();
+    rerenderAll();
+  });
 
-  function t(key, vars) {
-    const dict = I18N[currentLang] || I18N.en;
-    let s = (key in dict) ? dict[key] : (I18N.en[key] !== undefined ? I18N.en[key] : key);
-    if (vars) {
-      Object.keys(vars).forEach(k => { s = s.split('{' + k + '}').join(vars[k]); });
+  // Theme switcher (Dark / Light), to the right of the Language select.
+  // Doesn't need any re-render logic like the language switch does -- every
+  // color in this page is a CSS custom property (see the :root and
+  // :root[data-theme="light"] blocks at the top of this file), so flipping
+  // the data-theme attribute on <html> is the entire visual change; no card
+  // needs to be redrawn.
+  const themeSelect = document.getElementById('themeSelect');
+  themeSelect.value = currentTheme;
+  themeSelect.addEventListener('change', () => {
+    currentTheme = (themeSelect.value === 'light') ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', currentTheme);
+    try {
+      localStorage.setItem('orapulseTheme', currentTheme);
+    } catch (_) {
+      // localStorage can throw in some restricted browser contexts -- the
+      // theme still applies for the rest of this session, it just won't be
+      // remembered on next launch.
     }
-    return s;
-  }
+  });
 
-  // Static, one-time text: elements marked with data-i18n get their
-  // textContent replaced; data-i18n-html gets innerHTML replaced (for the
-  // few strings that legitimately contain markup, like the <br> in the
-  // Main tab's footer note). Re-run on every language switch.
-  function applyStaticI18n() {
-    document.querySelectorAll('[data-i18n]').forEach(el => {
-      el.textContent = t(el.getAttribute('data-i18n'));
-    });
-    document.querySelectorAll('[data-i18n-html]').forEach(el => {
-      el.innerHTML = t(el.getAttribute('data-i18n-html'));
-    });
-    document.querySelectorAll('[data-i18n-title]').forEach(el => {
-      el.title = t(el.getAttribute('data-i18n-title'));
-    });
-    document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
-      el.setAttribute('placeholder', t(el.getAttribute('data-i18n-placeholder')));
-    });
-  }
+  // Apply the restored language to the static markup before the first data
+  // load, so e.g. a restored 'ko' setting is reflected from the very first
+  // paint rather than only after the first card finishes loading.
+  applyStaticI18n();
+  applyHelpLanguage();
 
-  // Raw data caches for each card/section, kept around purely so a language
-  // switch can re-render already-loaded content client-side (using the same
-  // data currently on screen) instead of re-fetching from the server. Each
-  // one is set at the point its owning loadXxx() function receives a
-  // successful response, and read back only by rerenderAll() below.
-  let lastDbStatusData = null;
-  let lastJobFailuresData = null;
-  let lastAccountSecurityData = null;
-  let lastAlertLogData = null;
-  let lastOpsUsageData = null;
-  let lastRecoveryUsageData = null;
-  let lastTuningData = null;
-  let lastTableStatsData = null;
-  let lastTableStatsOwner = null;
-  // The SQL Runner result isn't refreshed on a timer or on tab switch (see
-  // TABS.sql above) -- it only changes when the user runs a new query -- so
-  // this cache exists purely so a language switch can re-render the same
-  // result set's row-count/cap-note text without re-running the query.
-  let lastSqlRunnerData = null;
-
-  // Re-applies the current language to both the static data-i18n markup and
-  // every dynamic card that has data cached above. Called once on initial
-  // load (in case a non-English language was restored from localStorage)
-  // and again every time the user switches languages via #langSelect.
+  loadStatus();
+  loadTableOwners();
+  loadJobFailures();
+  loadAccountSecurity();
+  loadAlertLog();

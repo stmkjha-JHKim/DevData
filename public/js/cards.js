@@ -841,6 +841,12 @@
       box.innerHTML = `<div class="empty-msg">${escapeHtml(section.message || t('alertLogLoadFailed'))}</div>`;
       return;
     }
+    // Demo build: backend/routes_alert_log.py skips V$DIAG_ALERT_EXT
+    // entirely and sends this flag instead of running the analysis.
+    if (section.demoDisabled) {
+      box.innerHTML = `<div class="empty-msg">${t('alertLogDemoDisabled')}</div>`;
+      return;
+    }
     if (!section.data.length) {
       box.innerHTML = `<div class="empty-msg">${t('alertLogEmpty', { days: section.days })}</div>`;
       return;

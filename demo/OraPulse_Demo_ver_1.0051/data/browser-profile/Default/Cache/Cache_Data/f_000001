@@ -687,6 +687,7 @@
 
   let favoritesCache = [];
   let currentFavoriteId = '';
+  let isDemoMode = false; // set from /api/version below; caps saved favorites at 1
 
   async function refreshFavorites() {
     try {
@@ -840,6 +841,10 @@
     if (existing && !confirm(`"${trimmedName}" 이름의 즐겨찾기가 이미 있습니다. 덮어쓸까요?`)) {
       return;
     }
+    if (isDemoMode && !existing && favoritesCache.length >= 1) {
+      showResult('error', '✕ 즐겨찾기 저장 실패', '데모 버전에서는 즐겨찾기를 1개까지만 저장할 수 있습니다. 기존 즐겨찾기를 먼저 삭제한 뒤 다시 시도하세요.');
+      return;
+    }
 
     const newFavorite = {
       id: existing ? existing.id : undefined,
@@ -892,8 +897,11 @@
       if (data.success && data.version) {
         document.getElementById('appVersion').textContent = `v${data.version}`;
       }
+      if (data.success && data.demoMode) {
+        isDemoMode = true;
+      }
     } catch (err) {
-      // Non-critical -- just leave the version text empty.
+      // Non-critical -- just leave the version text empty (and demo mode off).
     }
   })();
 </script>

@@ -30,7 +30,7 @@
     </div>
     <div class="actions">
       <button id="refreshBtn" data-i18n="btnRefresh">Refresh</button>
-      <button id="reportBtn" data-i18n="btnReport">Report</button>
+      <button id="reportBtn" data-i18n="btnReport" data-demo-hide>Report</button>
       <button id="logoutBtn" data-i18n="btnDisconnect">Disconnect</button>
       <select id="langSelect" class="sess-filter-input" style="flex: none; min-width: 0;" title="Language / 언어">
         <option value="en">English</option>
@@ -106,7 +106,7 @@
       <div id="box-tablestats"><div class="empty-msg" data-i18n="tableStatsSelectPrompt">Select a user to see per-table statistics collection status (sorted by oldest statistics first).</div></div>
     </div>
 
-    <div class="card card-wide">
+    <div class="card card-wide" data-demo-hide>
       <h2 class="h2-with-badge">
         <span class="h2-left"><span class="status-dot loading" id="dot-jobfailures"></span><span data-i18n="cardJobFailures">Scheduler/Job Failures</span></span>
         <button type="button" id="jobFailuresRefreshBtn" class="sess-filter-reset" data-i18n="btnRefresh">Refresh</button>
@@ -120,7 +120,7 @@
       <div id="box-jobfailures" class="skeleton" data-i18n="loadingLabel">Loading...</div>
     </div>
 
-    <div class="card card-wide">
+    <div class="card card-wide" data-demo-hide>
       <h2 class="h2-with-badge">
         <span class="h2-left"><span class="status-dot loading" id="dot-accountsecurity"></span><span data-i18n="cardAccountSecurity">Account Security</span></span>
         <button type="button" id="accountSecurityRefreshBtn" class="sess-filter-reset" data-i18n="btnRefresh">Refresh</button>
@@ -167,17 +167,17 @@
       <div id="box-loadprofile" class="skeleton" data-i18n="loadingLabel">Loading...</div>
     </div>
 
-    <div class="card card-wide">
+    <div class="card card-wide" data-demo-hide>
       <h2><span class="status-dot loading" id="dot-tempspace"></span><span data-i18n="cardTempSpace">TEMP Tablespace Usage</span></h2>
       <div id="box-tempspace" class="skeleton" data-i18n="loadingLabel">Loading...</div>
     </div>
 
-    <div class="card card-wide">
+    <div class="card card-wide" data-demo-hide>
       <h2><span class="status-dot loading" id="dot-tempsession"></span><span data-i18n="cardTempSession">TEMP Usage by Session</span></h2>
       <div id="box-tempsession" class="skeleton" data-i18n="loadingLabel">Loading...</div>
     </div>
 
-    <div class="card card-wide">
+    <div class="card card-wide" data-demo-hide>
       <h2><span class="status-dot loading" id="dot-autoextend"></span><span data-i18n="cardAutoextend">Datafile Autoextend Status</span></h2>
       <div id="box-autoextend" class="skeleton" data-i18n="loadingLabel">Loading...</div>
     </div>
@@ -187,7 +187,7 @@
       <div id="box-redolog" class="skeleton" data-i18n="loadingLabel">Loading...</div>
     </div>
 
-    <div class="card card-wide">
+    <div class="card card-wide" data-demo-hide>
       <h2><span class="status-dot loading" id="dot-tablespaceio"></span><span data-i18n="cardTablespaceIo">Tablespace I/O Stats</span></h2>
       <div id="box-tablespaceio" class="skeleton" data-i18n="loadingLabel">Loading...</div>
     </div>

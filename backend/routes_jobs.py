@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
 
 from .core import (
+    IS_DEMO_MODE,
     Session,
     cache_key,
     dict_rowfactory,
@@ -24,6 +25,13 @@ async def job_failures(request: Request, session: Session = Depends(get_session)
     creds = session.get("db_creds")
     if not creds:
         return JSONResponse({"success": False, "message": "Login required."}, status_code=401)
+
+    # Demo build: this card is hidden outright (see dashboard.html's
+    # data-demo-hide attribute on it and applyDemoModeUi() in
+    # app-shell.js), so skip DBA_SCHEDULER_JOB_RUN_DETAILS/DBA_JOBS
+    # entirely rather than fetching data nothing will ever display.
+    if IS_DEMO_MODE:
+        return {"success": True, "demoDisabled": True, "schedulerFailures": None, "legacyJobFailures": None, "days": 7}
 
     try:
         days = int(request.query_params.get("days", ""))

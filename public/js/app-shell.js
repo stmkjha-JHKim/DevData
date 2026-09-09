@@ -923,6 +923,14 @@
       btn.title = t('demoDisabledTooltip');
     });
     updateTableStatsBatchUI();
+    // Whole elements the demo build removes outright (the Report button,
+    // Scheduler/Job Failures, Account Security, and four Ops tab cards) --
+    // see dashboard.html's data-demo-hide attribute on each. Alert Log
+    // Analysis is deliberately NOT among these: that card stays visible
+    // with a "not supported in the demo version" note instead (see
+    // renderAlertLog() in cards.js), since it was asked to be commented on
+    // rather than removed.
+    document.querySelectorAll('[data-demo-hide]').forEach(el => { el.hidden = true; });
   }
 
   // Auto-refresh timers, each gated by shouldAutoRefresh() so a hidden

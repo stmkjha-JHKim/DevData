@@ -19,7 +19,7 @@ from fastapi.responses import JSONResponse
 from paths import app_dir
 import report
 
-from .core import Session, get_session
+from .core import IS_DEMO_MODE, Session, get_session
 
 router = APIRouter()
 
@@ -35,6 +35,10 @@ async def generate_report_endpoint(request: Request, session: Session = Depends(
     creds = session.get("db_creds")
     if not creds:
         return JSONResponse({"success": False, "message": "Login required."}, status_code=401)
+    if IS_DEMO_MODE:
+        return JSONResponse(
+            {"success": False, "message": "This action is disabled in the demo version."}, status_code=403
+        )
 
     body = await request.json()
     try:

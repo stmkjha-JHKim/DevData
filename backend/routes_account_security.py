@@ -12,6 +12,7 @@ from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
 
 from .core import (
+    IS_DEMO_MODE,
     Session,
     cache_key,
     dict_rowfactory,
@@ -29,6 +30,13 @@ async def account_security(request: Request, session: Session = Depends(get_sess
     creds = session.get("db_creds")
     if not creds:
         return JSONResponse({"success": False, "message": "Login required."}, status_code=401)
+
+    # Demo build: this card is hidden outright (see dashboard.html's
+    # data-demo-hide attribute on it and applyDemoModeUi() in
+    # app-shell.js), so skip DBA_USERS entirely rather than fetching data
+    # nothing will ever display.
+    if IS_DEMO_MODE:
+        return {"success": True, "demoDisabled": True, "lockedAccounts": None, "expiringPasswords": None, "days": 7}
 
     try:
         days = int(request.query_params.get("days", ""))

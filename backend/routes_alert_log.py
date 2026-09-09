@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
 
 from .core import (
+    IS_DEMO_MODE,
     Session,
     cache_key,
     dict_rowfactory,
@@ -24,6 +25,13 @@ async def alert_log(request: Request, session: Session = Depends(get_session)):
     creds = session.get("db_creds")
     if not creds:
         return JSONResponse({"success": False, "message": "Login required."}, status_code=401)
+
+    # Demo build: skip V$DIAG_ALERT_EXT entirely (no analysis is actually
+    # run) -- the card itself stays visible, but app-shell.js/cards.js
+    # render this demoDisabled flag as a "not supported in the demo
+    # version" note instead of a real result.
+    if IS_DEMO_MODE:
+        return {"success": True, "demoDisabled": True, "data": [], "days": 7}
 
     try:
         days = int(request.query_params.get("days", ""))

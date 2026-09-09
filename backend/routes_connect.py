@@ -21,6 +21,7 @@ import report
 
 from . import core
 from .core import (
+    IS_DEMO_MODE,
     ORACLE_CLIENT_PROGRAM,
     Session,
     app,
@@ -191,6 +192,23 @@ async def save_favorite_endpoint(request: Request):
             },
             status_code=400,
         )
+
+    # Demo build: capped at 1 saved favorite. Overwriting that one favorite
+    # (same id passed back in) is still allowed -- only adding a *second*
+    # one is blocked.
+    if IS_DEMO_MODE:
+        existing = favorites_store.list_favorites()
+        fav_id = body.get("id")
+        is_new = not (fav_id and any(f["id"] == fav_id for f in existing))
+        if is_new and len(existing) >= 1:
+            return JSONResponse(
+                {
+                    "success": False,
+                    "message": "The demo version allows only 1 saved favorite. Delete the existing one first.",
+                },
+                status_code=403,
+            )
+
     try:
         saved = favorites_store.save_favorite(body)
         return {"success": True, "favorite": saved}
