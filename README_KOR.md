@@ -124,9 +124,52 @@ python main.py
 
 두 스크립트 모두 `VERSION` 파일에서 버전을 읽습니다. `build-installer.ps1`은 먼저 `build-folder.ps1`을 실행한 뒤 `installer.iss`를 컴파일해 `dist\OraPulse-Setup_ver_<버전>.exe`를 생성합니다. 설치 위치는 `C:\Program Files (x86)\OraPulse_Windows_x86`이며 관리자 권한/UAC가 필요합니다.
 
+## MSI로 설치하기 (Windows)
+
+위 Inno Setup 방식과는 별개로 제공되는 두 번째 설치 프로그램 형식입니다: [WiX Toolset](https://wixtoolset.org/) v3.14로 만든 정식 시스템 전체(per-machine) Windows Installer 패키지입니다.
+
+```powershell
+.\build-msi.ps1
+```
+
+WiX Toolset v3.14(`candle.exe`/`light.exe`/`heat.exe`)가 필요합니다 -- `winget install --id WiXToolset.WiXToolset -e`로 먼저 설치하세요(.NET Framework 3.5 Windows 기능 활성화와 관리자 권한/UAC 승인이 최초 1회 필요합니다). 이 스크립트는 WiX를 직접 설치하지 않으며, 찾지 못하면 동일한 설치 안내와 함께 실패합니다.
+
+`build-msi.ps1`은 `build-folder.ps1`로 폴더 배포본을 새로 빌드하고, `favicon.ico`와 자동 생성된 `THIRD-PARTY-NOTICES.txt`(이 프로젝트가 사용하는 각 의존성 패키지의 라이선스 파일을 취합)를 함께 준비한 뒤, 필수 파일이 모두 있는지 검증하고, `heat.exe`로 `lib/`/`public/`을 WiX 컴포넌트로 자동 수집한 다음, `candle.exe`/`light.exe`로 컴파일·링크합니다. 결과물은 다음 위치에 생성됩니다.
+
+```
+setup\<버전>\OraPulse_ODM_Setup_ver_<버전>.msi
+```
+
+중간 빌드 파일은 `setup\<버전>\work\` 아래에만 모이고 저장소 루트에 흩어지지 않습니다. MSI와 내부에 포함된 `OraPulse.exe`의 SHA-256 값이 함께 기록되며, 빌드된 MSI에 대해 읽기 전용 검증(64비트 패키지 여부, 설치 경로, 제어판 등록 정보, 업그레이드 테이블, 무인 설치 기능 목록, 파일 개수 등)이 자동으로 실행됩니다 -- 전체 목록은 스크립트 자체의 콘솔 출력을 참고하세요.
+
+이 MSI는 `C:\Program Files\OraPulse(ODM)`에 설치되며(정식 64비트 설치, Program Files (x86)이 아님), Inno 설치 프로그램과 마찬가지로 관리자 권한이 필요한 시스템 전체 설치입니다. 제어판의 "프로그램 추가/제거"에 제품명·버전·게시자·정상 작동하는 제거 기능이 올바르게 등록되며, 시작 메뉴 바로가기가 생성되고 바탕화면 바로가기는 설치 옵션으로 선택할 수 있습니다. 설치 시작 시 OraPulse가 실행 중이면 먼저 안전하게 종료를 요청하며, 제때 종료되지 않으면 강제 종료 대신 Windows Installer 표준의 "이 프로그램을 닫아주세요" 안내가 표시됩니다. 새 버전으로 업그레이드하면 이전 버전이 자동으로 제거된 뒤 새 버전이 설치되며(`UpgradeCode`는 모든 버전에서 영구히 동일하게 유지됩니다), 더 낮은 버전의 MSI를 나중에 설치하려 하면 명확한 안내와 함께 차단됩니다. 재부팅은 어떤 경우에도 요구하지 않습니다.
+
+무인 설치·제거:
+
+```powershell
+msiexec /i "OraPulse_ODM_Setup_ver_<버전>.msi" /qn
+msiexec /x "OraPulse_ODM_Setup_ver_<버전>.msi" /qn
+```
+
+둘 다 앱을 실행하거나 브라우저를 열지 않습니다. 무인 설치 시 `ADDLOCAL=MainFeature`를 지정하면 바탕화면 바로가기(옵션 기능)를 제외할 수 있습니다(별도 지정이 없으면 기본으로 설치됩니다).
+
+이 MSI 자체의 4자리 표시 버전(저장소 루트의 `MSI_VERSION` 파일, 예: `1.0.0.1`)은 포터블/Inno 빌드가 쓰는 `VERSION` 파일(1.NNNN 체계)과 완전히 독립적으로 관리됩니다 -- 하나를 올려도 다른 하나에는 영향이 없습니다. 새 MSI를 만들려면 `build-msi.ps1`을 다시 실행하기 전에 `MSI_VERSION`을 직접 수정하세요. Windows Installer의 `ProductVersion` 속성은 숫자 3자리까지만 표현할 수 있어, 4자리 표시 버전에서 *세 번째* 자리(관례상 항상 0)를 제거해 매핑합니다: `1.0.0.1` → MSI `ProductVersion` `1.0.1`, `1.0.0.2` → `1.0.2` 등. 4자리 전체 버전은 설치 파일명과 "프로그램 추가/제거"의 "자세한 정보"(`ARPCOMMENTS`)에 그대로 표시됩니다.
+
+**기존 Inno Setup 설치 프로그램은 그대로 유지됩니다** -- 이 MSI는 대체가 아니라 추가로 제공되는 선택지입니다.
+
 ## 데이터 저장 및 개인정보
 
-OraPulse가 저장하는 모든 데이터는 실행 중인 앱 옆(실행 파일, 또는 소스에서 실행 시 `main.py` 옆)에 생성되는 `data/` 폴더에만 저장되며, 사용자가 연결한 Oracle DB 이외에는 어디로도 전송되지 않습니다:
+OraPulse가 데이터를 저장하는 위치는 실행 방식에 따라 다릅니다:
+
+- **소스에서 직접 실행하거나, 포터블 exe/폴더/Inno 설치본을 사용하는 경우:** 기존과 동일하게 실행 중인 앱 옆(실행 파일, 또는 소스 실행 시 `main.py` 옆)에 생성되는 `data/` 폴더에 모든 데이터가 저장됩니다.
+- **MSI로 설치한 경우** (위 참고): `C:\Program Files\OraPulse(ODM)`에 설치되므로 관리자가 아닌 사용자는 실행 중에 그 위치에 쓸 수 없습니다. 그래서 패키징된(frozen) 빌드는 대신 `%LOCALAPPDATA%\OraPulse\` 아래에 모든 데이터를 저장합니다:
+  - `%LOCALAPPDATA%\OraPulse\data\` -- 포터블 빌드의 `data/` 폴더와 동일한 파일들(아래 목록 참고)
+  - `%LOCALAPPDATA%\OraPulse\reports\` -- Weekly DB Health Report 출력(기존에는 실행 파일 옆 `report/`)
+  - `%LOCALAPPDATA%\OraPulse\logs\` -- 향후 사용을 위해 예약된 경로이며, 현재는 아무것도 기록하지 않습니다
+
+  기존 포터블/Inno 설치본의 `data/`/`report/` 폴더가 새 patched(frozen) 빌드의 실행 파일 옆에서 발견되면, 최초 실행 시 새 `%LOCALAPPDATA%\OraPulse\` 위치로 자동으로 이전(이동)됩니다 -- 1회성의 안전한 마이그레이션이며, 도중에 실패하더라도 원본 폴더를 그대로 남겨둘 뿐 데이터를 잃지 않도록 처리했습니다.
+
+어느 경우든, 사용자가 연결한 Oracle DB 이외에는 어디로도 전송되지 않습니다:
 
 - `favorites.enc` / `.favorites-key` -- 저장된 접속 정보, AES-256-GCM
 - `snapshot-history.jsonl` / `.snapshot-key` -- Weekly Report 이력
@@ -134,7 +177,13 @@ OraPulse가 저장하는 모든 데이터는 실행 중인 앱 옆(실행 파일
 - `.instance-port` -- 현재 실행 중인 인스턴스가 사용 중인 포트 번호로, 재실행 시 이미 실행 중인 인스턴스를 감지/이동하는 용도로만 쓰입니다; 민감한 정보가 아니며 앱이 실행 중이 아닐 때 삭제해도 안전합니다
 - `browser-profile/` -- OraPulse가 스스로 여는 전용 Chrome/Edge 프로파일 폴더(위 "데스크톱 패키징" 참고); 일반적인 브라우저 프로파일 데이터일 뿐 Oracle 접속 정보와는 무관하며, 마찬가지로 삭제해도 안전합니다
 
-각 저장소는 자체 키 파일을 사용하며 서로 독립적입니다. `data/` 폴더를 삭제하면 이 데이터가 모두 삭제되며, 다음 사용 시 각 파일이 빈 상태로 다시 생성되므로 언제든 안전하게 삭제할 수 있습니다.
+각 저장소는 자체 키 파일을 사용하며 서로 독립적입니다. `data/` 폴더(또는 `%LOCALAPPDATA%\OraPulse\data\`) 전체를 삭제하면 이 데이터가 모두 삭제되며, 다음 사용 시 각 파일이 빈 상태로 다시 생성되므로 언제든 안전하게 삭제할 수 있습니다.
+
+**MSI를 제거해도 `%LOCALAPPDATA%\OraPulse\`는 의도적으로 그대로 남습니다** (Inno 설치 프로그램이 `data/`에 손대지 않는 것과 같은 이유입니다) -- 재설치나 업그레이드 시 이전 상태를 그대로 이어서 사용할 수 있습니다. 저장된 즐겨찾기와 리포트 이력까지 완전히 삭제하려면, 제거 후 `%LOCALAPPDATA%\OraPulse\`를 직접 삭제하세요:
+
+```powershell
+Remove-Item "$env:LOCALAPPDATA\OraPulse" -Recurse -Force
+```
 
 ## 알려진 제한 사항
 
@@ -143,3 +192,4 @@ OraPulse가 저장하는 모든 데이터는 실행 중인 앱 옆(실행 파일
 - SQL Query Runner에는 바인드 변수 입력 UI가 없어, 바인드 변수가 필요한 쿼리는 리터럴 값을 직접 넣어야 합니다. BLOB 컬럼은 표시되지 않습니다.
 - OS 레벨의 호스트 지표(디스크/파일시스템 여유공간, Oracle이 직접 보고하지 않는 CPU 부하 등)는 제공하지 않습니다 -- 설계상 DB 접속을 통해 얻을 수 있는 정보만 다룹니다.
 - 전용 프로파일을 통한 비밀번호 저장 알림 방지(위 "데스크톱 패키징" 참고)는 Chrome이나 Edge가 표준 Windows 설치 경로에 있을 때만 적용됩니다 -- 그렇지 않으면 이 조치 없이 OS 기본 브라우저로 열립니다.
+- MSI 설치 프로그램 자체의 마법사 UI(WiX 표준 대화상자)는 영어로만 제공됩니다 -- 설치된 앱 자체는 기존과 동일하게 한국어/영어를 모두 지원합니다. 별도의 정식 최종 사용자 라이선스 계약(EULA)도 포함되어 있지 않으며, 라이선스 화면은 이 README를 참고하도록 안내하는 내용만 담고 있습니다.

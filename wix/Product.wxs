@@ -1,0 +1,179 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Product.wxs: WiX v3 source for OraPulse (ODM)'s MSI installer.
+
+  Built exclusively by build-msi.ps1 at the repo root, never by hand:
+  that script computes ProductVersion/DisplayVersion/PayloadDir/
+  LibSourceDir/PublicSourceDir (see the -d... preprocessor variables
+  referenced below) and also runs heat.exe to generate LibFragment.wxs/
+  PublicFragment.wxs (the ComponentGroups "LibComponents"/"PublicComponents"
+  referenced by Id below), which are compiled and linked alongside this
+  file. See build-msi.ps1's own top-of-file comment for the full pipeline.
+
+  UpgradeCode below is fixed forever: every future OraPulse MSI version
+  must keep this exact GUID so Windows Installer recognizes them as the
+  same product family for MajorUpgrade purposes. Never change it.
+-->
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi"
+     xmlns:util="http://schemas.microsoft.com/wix/UtilExtension">
+
+  <Product Id="*"
+           Name="OraPulse (ODM)"
+           Language="1033"
+           Version="$(var.ProductVersion)"
+           Manufacturer="$(var.Manufacturer)"
+           UpgradeCode="F3CAC7A6-8545-43CD-B179-470834A029EE">
+
+    <Package InstallerVersion="500"
+             Compressed="yes"
+             InstallScope="perMachine"
+             InstallPrivileges="elevated"
+             Description="OraPulse (ODM) $(var.DisplayVersion) Setup"
+             Manufacturer="$(var.Manufacturer)" />
+
+    <!-- Never prompt for or schedule a reboot: nothing this installer
+         does (plain file copy + shortcuts + registry keypaths) touches
+         anything that would need one. -->
+    <Property Id="REBOOT" Value="ReallySuppress" />
+
+    <!-- Blocks installing an older MSI over a newer one (shows
+         DowngradeErrorMessage and aborts), and auto-uninstalls the
+         previous version before installing a newer one otherwise.
+         afterInstallInitialize is the modern recommended schedule (lets
+         the new version's own install run before the old one is removed,
+         so files/registry from the old version can't clobber the new
+         one's mid-install). -->
+    <MajorUpgrade DowngradeErrorMessage="A newer version of OraPulse (ODM) is already installed. Setup will now exit."
+                  Schedule="afterInstallInitialize" />
+
+    <Media Id="1" Cabinet="orapulse.cab" EmbedCab="yes" />
+
+    <!-- ARPCOMMENTS carries the full 4-part display version (e.g.
+         1.0.0.1) since Windows Installer's own ProductVersion property
+         (shown as "Version" in Programs and Features) can only hold 3
+         numeric fields; see build-msi.ps1's version-conversion rule. -->
+    <Property Id="ARPCOMMENTS" Value="Version $(var.DisplayVersion)" />
+    <Property Id="ARPPRODUCTICON" Value="ProductIcon.ico" />
+    <Icon Id="ProductIcon.ico" SourceFile="$(var.PayloadDir)\favicon.ico" />
+
+    <!-- If OraPulse.exe is currently running, ask it to close gracefully
+         (WM_CLOSE to its top-level window, if it has one) before
+         install/upgrade/uninstall proceeds. No TerminateProcess timeout is
+         set, so a copy that doesn't close in time falls through to
+         Windows Installer's own standard "close these programs and
+         retry" prompt instead of being force-killed; see this
+         product's README for the full explanation. -->
+    <util:CloseApplication Id="CloseOraPulseExe"
+                            Target="OraPulse.exe"
+                            CloseMessage="yes"
+                            RebootPrompt="no"
+                            Description="OraPulse (ODM) is currently running. Please close it, or Setup will ask it to close." />
+
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <!-- ProgramFilesFolder always resolves to the 32-bit Program Files
+           (x86) regardless of package platform; ProgramFiles64Folder is
+           the distinct well-known directory for a 64-bit install (see
+           requirement: 64-bit MSI, C:\Program Files\OraPulse(ODM), never
+           Program Files (x86)). -->
+      <Directory Id="ProgramFiles64Folder">
+        <Directory Id="INSTALLFOLDER" Name="OraPulse(ODM)">
+          <Directory Id="LIBFOLDER" Name="lib" />
+          <Directory Id="PUBLICFOLDER" Name="public" />
+        </Directory>
+      </Directory>
+      <Directory Id="ProgramMenuFolder">
+        <Directory Id="ApplicationProgramsFolder" Name="OraPulse (ODM)" />
+      </Directory>
+      <Directory Id="DesktopFolder" />
+    </Directory>
+
+    <DirectoryRef Id="INSTALLFOLDER">
+      <Component Id="CMP_MainExe" Guid="*">
+        <File Id="FILE_OraPulseExe" Source="$(var.PayloadDir)\OraPulse.exe" KeyPath="yes" Checksum="yes" />
+      </Component>
+      <Component Id="CMP_Version" Guid="*">
+        <File Id="FILE_Version" Source="$(var.PayloadDir)\VERSION" KeyPath="yes" />
+      </Component>
+      <Component Id="CMP_Readme" Guid="*">
+        <File Id="FILE_Readme" Source="$(var.PayloadDir)\README.txt" KeyPath="yes" />
+      </Component>
+      <Component Id="CMP_IconFile" Guid="*">
+        <File Id="FILE_Icon" Source="$(var.PayloadDir)\favicon.ico" KeyPath="yes" />
+      </Component>
+      <Component Id="CMP_ThirdPartyNotices" Guid="*">
+        <File Id="FILE_ThirdPartyNotices" Source="$(var.PayloadDir)\THIRD-PARTY-NOTICES.txt" KeyPath="yes" />
+      </Component>
+      <Component Id="CMP_DllCrt" Guid="*">
+        <File Id="FILE_DllCrt" Source="$(var.PayloadDir)\api-ms-win-crt-runtime-l1-1-0.dll" KeyPath="yes" />
+      </Component>
+      <Component Id="CMP_DllUcrt" Guid="*">
+        <File Id="FILE_DllUcrt" Source="$(var.PayloadDir)\ucrtbase.dll" KeyPath="yes" />
+      </Component>
+      <Component Id="CMP_DllVcRuntime" Guid="*">
+        <File Id="FILE_DllVcRuntime" Source="$(var.PayloadDir)\VCRUNTIME140.dll" KeyPath="yes" />
+      </Component>
+      <Component Id="CMP_DllVcRuntime1" Guid="*">
+        <File Id="FILE_DllVcRuntime1" Source="$(var.PayloadDir)\VCRUNTIME140_1.dll" KeyPath="yes" />
+      </Component>
+    </DirectoryRef>
+
+    <!-- Standard "shortcut with no natural KeyPath file" idiom: a
+         per-user registry value under HKCU is used purely as this
+         component's KeyPath marker (this is the pattern WiX's own docs
+         recommend), not meaningful app data. -->
+    <DirectoryRef Id="ApplicationProgramsFolder">
+      <Component Id="CMP_StartMenuShortcut" Guid="*">
+        <Shortcut Id="StartMenuShortcut"
+                  Name="OraPulse (ODM)"
+                  Description="Oracle Database Monitoring Client"
+                  Target="[INSTALLFOLDER]OraPulse.exe"
+                  WorkingDirectory="INSTALLFOLDER"
+                  Icon="ProductIcon.ico" />
+        <RemoveFolder Id="RemoveApplicationProgramsFolder" On="uninstall" />
+        <RegistryValue Root="HKCU" Key="Software\OraPulse(ODM)" Name="StartMenuShortcutInstalled" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+    </DirectoryRef>
+
+    <DirectoryRef Id="DesktopFolder">
+      <Component Id="CMP_DesktopShortcut" Guid="*">
+        <Shortcut Id="DesktopShortcut"
+                  Name="OraPulse (ODM)"
+                  Description="Oracle Database Monitoring Client"
+                  Target="[INSTALLFOLDER]OraPulse.exe"
+                  WorkingDirectory="INSTALLFOLDER"
+                  Icon="ProductIcon.ico" />
+        <RegistryValue Root="HKCU" Key="Software\OraPulse(ODM)" Name="DesktopShortcutInstalled" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+    </DirectoryRef>
+
+    <!-- Mandatory: the app itself, both bundled folders, and the Start
+         Menu shortcut. Absent="disallow" keeps this un-uncheckable in the
+         Custom Setup feature tree. -->
+    <Feature Id="MainFeature" Title="OraPulse (ODM)" Level="1" Absent="disallow" AllowAdvertise="no">
+      <ComponentRef Id="CMP_MainExe" />
+      <ComponentRef Id="CMP_Version" />
+      <ComponentRef Id="CMP_Readme" />
+      <ComponentRef Id="CMP_IconFile" />
+      <ComponentRef Id="CMP_ThirdPartyNotices" />
+      <ComponentRef Id="CMP_DllCrt" />
+      <ComponentRef Id="CMP_DllUcrt" />
+      <ComponentRef Id="CMP_DllVcRuntime" />
+      <ComponentRef Id="CMP_DllVcRuntime1" />
+      <ComponentRef Id="CMP_StartMenuShortcut" />
+      <ComponentGroupRef Id="LibComponents" />
+      <ComponentGroupRef Id="PublicComponents" />
+    </Feature>
+
+    <!-- Optional: "Create a desktop shortcut", present by default (both
+         in the attended UI's Custom Setup tree, and for a silent /qn
+         install with no ADDLOCAL override), but the user can uncheck it
+         attended, or pass ADDLOCAL=MainFeature unattended to skip it. -->
+    <Feature Id="DesktopShortcutFeature" Title="Desktop Shortcut" Level="1" AllowAdvertise="no">
+      <ComponentRef Id="CMP_DesktopShortcut" />
+    </Feature>
+
+    <UIRef Id="WixUI_FeatureTree" />
+    <WixVariable Id="WixUILicenseRtf" Value="$(var.WixSourceDir)\License.rtf" />
+
+  </Product>
+</Wix>

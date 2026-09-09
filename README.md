@@ -226,12 +226,106 @@ Both read the version from the `VERSION` file. `build-installer.ps1` runs
 `dist\OraPulse-Setup_ver_<version>.exe`, which installs to
 `C:\Program Files (x86)\OraPulse_Windows_x86` (requires admin/UAC).
 
+## Installing via MSI (Windows)
+
+A second, independent installer format alongside the Inno Setup one
+above: a proper per-machine Windows Installer package, built with the
+[WiX Toolset](https://wixtoolset.org/) v3.14.
+
+```powershell
+.\build-msi.ps1
+```
+
+Requires WiX Toolset v3.14 (`candle.exe`/`light.exe`/`heat.exe`) -- install
+it first with `winget install --id WiXToolset.WiXToolset -e` (this needs
+the .NET Framework 3.5 Windows feature enabled and admin/UAC approval the
+first time). The script never installs WiX itself; it fails with these
+same instructions if it can't find it.
+
+`build-msi.ps1` rebuilds the folder distribution fresh (`build-folder.ps1`),
+stages it together with `favicon.ico` and a generated
+`THIRD-PARTY-NOTICES.txt` (aggregated from this project's own dependencies'
+license files), validates every required file is present, has `heat.exe`
+harvest `lib/`/`public/` into WiX components, and compiles/links the
+result with `candle.exe`/`light.exe`. Output:
+
+```
+setup\<version>\OraPulse_ODM_Setup_ver_<version>.msi
+```
+
+Intermediate files stay under `setup\<version>\work\`, never scattered
+across the repo root. A SHA-256 of both the MSI and the bundled
+`OraPulse.exe` is written alongside it, and a handful of read-only checks
+(64-bit package, install path, Add/Remove Programs metadata, upgrade
+table, silent-install feature list, file count) run automatically against
+the built MSI -- see the script's own console output for the full list.
+
+The MSI installs to `C:\Program Files\OraPulse(ODM)` (a real 64-bit
+install, never Program Files (x86)), requires administrator privileges (a
+per-machine install, same as the Inno installer), registers correctly in
+Programs and Features (name, version, publisher, working uninstaller),
+creates a Start Menu shortcut, and offers an optional Desktop shortcut. If
+OraPulse is running when Setup starts, it's asked to close gracefully
+first; if it can't close in time, Windows Installer's own standard
+"close these programs" prompt appears instead of anything being force-
+killed. Upgrading to a newer MSI automatically removes the old version
+first (`UpgradeCode` is fixed forever across every version); installing
+an *older* MSI over a newer one is blocked with a clear message. No
+reboot is ever required.
+
+Unattended install/uninstall:
+
+```powershell
+msiexec /i "OraPulse_ODM_Setup_ver_<version>.msi" /qn
+msiexec /x "OraPulse_ODM_Setup_ver_<version>.msi" /qn
+```
+
+Neither launches the app or opens a browser. Pass
+`ADDLOCAL=MainFeature` to a silent install to skip the optional Desktop
+shortcut (default, with no `ADDLOCAL` override, installs it).
+
+This MSI's own 4-part display version (`MSI_VERSION` file at the repo
+root, e.g. `1.0.0.1`) is tracked independently from the portable/Inno
+builds' `VERSION` file (`1.NNNN` scheme) -- bumping one never affects the
+other; edit `MSI_VERSION` by hand before running `build-msi.ps1` again for
+a new release. Windows Installer's own `ProductVersion` property can only
+hold 3 numeric fields, so the 4-part display version is mapped down by
+dropping the *third* field (kept at 0 by convention): `1.0.0.1` becomes
+MSI `ProductVersion` `1.0.1`, `1.0.0.2` becomes `1.0.2`, and so on. The
+full 4-part version still appears in the installer's filename and in
+Programs and Features' "More info" (`ARPCOMMENTS`).
+
+**The existing Inno Setup installer is unaffected** -- this MSI is an
+additional option, not a replacement.
+
 ## Data storage & privacy
 
-Everything OraPulse stores lives in a `data/` folder created next to the
-running app (the exe, or `main.py` when run from source) -- never anywhere
-else, and never transmitted anywhere except directly to the Oracle DB the
-user connects to:
+Where OraPulse stores its data depends on how it's running:
+
+- **Running from source, or the portable exe/folder/Inno-installed
+  build:** everything lives in a `data/` folder created next to the
+  running app (the exe, or `main.py` when run from source) -- exactly as
+  before.
+- **Installed via the MSI** (see above), which installs to
+  `C:\Program Files\OraPulse(ODM)`: a non-admin user can't write there at
+  runtime, so a frozen build instead stores everything under
+  `%LOCALAPPDATA%\OraPulse\`:
+  - `%LOCALAPPDATA%\OraPulse\data\` -- the same files as the portable
+    build's `data/` folder (see the list below)
+  - `%LOCALAPPDATA%\OraPulse\reports\` -- Weekly DB Health Report output
+    (was `report/` next to the exe)
+  - `%LOCALAPPDATA%\OraPulse\logs\` -- reserved for future use; nothing
+    writes here yet
+
+  If an older portable/Inno-installed copy's `data/`/`report/` folder is
+  found next to a newer, frozen build's own exe on first launch, it's
+  moved (not copied) into the new `%LOCALAPPDATA%\OraPulse\` location
+  automatically -- a one-time, safe migration (any failure along the way
+  is logged and simply leaves the old folder exactly where it was, rather
+  than risking data loss).
+
+Either way, nothing is ever transmitted anywhere except directly to the
+Oracle DB the user connects to:
 
 - `favorites.enc` / `.favorites-key` -- saved connections, AES-256-GCM
 - `snapshot-history.jsonl` / `.snapshot-key` -- Weekly Report history
@@ -245,8 +339,18 @@ user connects to:
   unrelated to Oracle credentials, and likewise safe to delete
 
 Each store uses its own key file and is otherwise self-contained. Deleting
-the `data/` folder removes all of it and is always safe (each file is
-recreated empty on next use).
+the whole `data/` folder (or `%LOCALAPPDATA%\OraPulse\data\`) removes all
+of it and is always safe (each file is recreated empty on next use).
+
+**Uninstalling the MSI leaves `%LOCALAPPDATA%\OraPulse\` in place by
+design** (same reasoning as the Inno installer never touching `data/`) --
+a reinstall or upgrade picks up right where a previous install left off.
+To remove everything, including saved favorites and report history, after
+uninstalling: delete `%LOCALAPPDATA%\OraPulse\` by hand, e.g.
+
+```powershell
+Remove-Item "$env:LOCALAPPDATA\OraPulse" -Recurse -Force
+```
 
 ## Known limitations
 
@@ -264,3 +368,7 @@ recreated empty on next use).
   packaging) only applies when Chrome or Edge is installed at one of
   their standard Windows locations; otherwise the app opens in the OS
   default browser instead, without that fix.
+- The MSI installer's own setup wizard UI (WiX's standard dialogs) is
+  English-only; the installed app itself remains fully bilingual as
+  always. It also has no formal end-user license agreement -- the license
+  step just links back to this README.

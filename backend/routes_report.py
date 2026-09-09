@@ -1,13 +1,14 @@
 """backend/routes_report.py -- Weekly DB Health Report (Report button next
 to Refresh): unlike every other endpoint in this package, this one
 doesn't hand its result back to the browser to download -- it saves the
-generated HTML straight to disk, next to the running .exe (app_dir()),
-under report/<YYYY-MM-DD>/. That folder is created if missing (and reused
-if it already exists) so a day's worth of reports land together
-regardless of how many are generated. This replaced a client-side
-"download the response as a Blob" flow that depended on the browser's own
-download/Save-As handling actually completing -- saving server-side works
-the same way regardless of browser download settings."""
+generated HTML straight to disk under REPORT_DIR/<YYYY-MM-DD>/ (see
+paths.py -- next to the .exe when running from source, under
+%LOCALAPPDATA%\\OraPulse\\reports for a frozen build). That folder is
+created if missing (and reused if it already exists) so a day's worth of
+reports land together regardless of how many are generated. This replaced
+a client-side "download the response as a Blob" flow that depended on the
+browser's own download/Save-As handling actually completing -- saving
+server-side works the same way regardless of browser download settings."""
 
 import os
 import re
@@ -16,7 +17,7 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
 
-from paths import app_dir
+from paths import REPORT_DIR
 import report
 
 from .core import Session, get_session
@@ -65,14 +66,18 @@ async def generate_report_endpoint(request: Request, session: Session = Depends(
         )
 
     date_folder = _today_date_folder()
-    report_dir = app_dir() / "report" / date_folder
+    report_dir = REPORT_DIR / date_folder
     try:
         report_dir.mkdir(parents=True, exist_ok=True)
-        (report_dir / filename).write_text(html, encoding="utf-8")
+        saved_path = report_dir / filename
+        saved_path.write_text(html, encoding="utf-8")
     except OSError as err:
         return JSONResponse(
             {"success": False, "message": f"Failed to save report file: {err}"}, status_code=500
         )
 
-    rel_path = f"report/{date_folder}/{filename}"
-    return {"success": True, "message": f"Report saved to {rel_path}", "path": rel_path}
+    # The full path, not a "report/<date>/<file>" relative one -- REPORT_DIR
+    # is no longer always next to the .exe (see paths.py), so a relative
+    # path alone would no longer tell the user where to actually look.
+    full_path = str(saved_path)
+    return {"success": True, "message": f"Report saved to {full_path}", "path": full_path}

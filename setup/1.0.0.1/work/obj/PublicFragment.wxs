@@ -1,0 +1,99 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+    <Fragment>
+        <DirectoryRef Id="PUBLICFOLDER">
+            <Component Id="cmp44A0973E40D903ABDE78F3BB5C03B77D" Guid="*">
+                <File Id="fil08176AF96652A827F55CCC284C631DA3" KeyPath="yes" Source="$(var.PublicSourceDir)\dashboard.html" />
+            </Component>
+            <Component Id="cmp93076D5EFAECDA288ED84BF0F3A95337" Guid="*">
+                <File Id="filED35E2C82CBB2ECF0CEF0021BDE42682" KeyPath="yes" Source="$(var.PublicSourceDir)\favicon.ico" />
+            </Component>
+            <Component Id="cmpB001258345C597A5A7A5ECDBA52D8555" Guid="*">
+                <File Id="fil02840B19744CACE6467642791070F383" KeyPath="yes" Source="$(var.PublicSourceDir)\favicon.svg" />
+            </Component>
+            <Component Id="cmp36C59A5312801038F573F5F90E6B4AE7" Guid="*">
+                <File Id="filD6BB5BBB8D0CB87D50BF81E7AE189CDB" KeyPath="yes" Source="$(var.PublicSourceDir)\index.html" />
+            </Component>
+            <Component Id="cmpC28D3F2DF5F3D7572DA14E3970810481" Guid="*">
+                <File Id="filD4C7053C11110175EBCCAFE271438516" KeyPath="yes" Source="$(var.PublicSourceDir)\troubleshooting.html" />
+            </Component>
+            <Directory Id="dirD5CAA28B02E70EA86F92884AC3561E67" Name="css">
+                <Component Id="cmp5ADB254A8B587D43490E4A902A7E1E6A" Guid="*">
+                    <File Id="filE4333A01E3C35D9C2DA84144AD64DB27" KeyPath="yes" Source="$(var.PublicSourceDir)\css\dashboard.css" />
+                </Component>
+            </Directory>
+            <Directory Id="dir116525298ADA102E9B25E081F45D7145" Name="images">
+                <Directory Id="dir6118E403FF3BBFF1971DD0C2B6334F51" Name="help">
+                    <Component Id="cmpEC121E652EBA8E06554325B8D2829300" Guid="*">
+                        <File Id="fil18AB99D09EC42F718F34530563C63497" KeyPath="yes" Source="$(var.PublicSourceDir)\images\help\connect-screen.png" />
+                    </Component>
+                    <Component Id="cmp85C0A4F2796CF3D5FB44A228B6FB0EB8" Guid="*">
+                        <File Id="filA6A9B7E17F724254E497EBBC4F92D8A7" KeyPath="yes" Source="$(var.PublicSourceDir)\images\help\dashboard-korean.png" />
+                    </Component>
+                    <Component Id="cmp0C17B2767947194BB14F3A78E9446A80" Guid="*">
+                        <File Id="filD76DC4EB06B90432A9C002A5C2F40B46" KeyPath="yes" Source="$(var.PublicSourceDir)\images\help\dashboard-overview.png" />
+                    </Component>
+                    <Component Id="cmp12DF48CA19A162D1AA8ED8B35B060310" Guid="*">
+                        <File Id="fil9D6FBD9DCB69EB3CE800B9A22DDE6918" KeyPath="yes" Source="$(var.PublicSourceDir)\images\help\dashboard-security-alertlog.png" />
+                    </Component>
+                    <Component Id="cmp85AA77D531B246CFA16365D5ADFE0661" Guid="*">
+                        <File Id="fil66A7863DE0421D5BFB3F0C6962707B51" KeyPath="yes" Source="$(var.PublicSourceDir)\images\help\dashboard-tablestats-jobs.png" />
+                    </Component>
+                    <Component Id="cmp04B8329805F150596909BC3A23E52631" Guid="*">
+                        <File Id="filC82B58CFD2FEB4BCA55F9FB9A06B1F6B" KeyPath="yes" Source="$(var.PublicSourceDir)\images\help\objectview-ddl.png" />
+                    </Component>
+                    <Component Id="cmp9F0EE1E80EC2A59B1973A07DF228F2EB" Guid="*">
+                        <File Id="fil344B49C6DB175B25C8349A1C6C57426A" KeyPath="yes" Source="$(var.PublicSourceDir)\images\help\ops-top.png" />
+                    </Component>
+                    <Component Id="cmp28B3BA347CE81476386D5636CE41AC17" Guid="*">
+                        <File Id="fil0B04672F1DD9C68D2D33E0A3F5786671" KeyPath="yes" Source="$(var.PublicSourceDir)\images\help\ops-topsql-waits.png" />
+                    </Component>
+                    <Component Id="cmp72E08DB99D3E5D5325EC96A92EB7E575" Guid="*">
+                        <File Id="fil019D40AC41325D4523AA3B3795E8FBCC" KeyPath="yes" Source="$(var.PublicSourceDir)\images\help\recovery.png" />
+                    </Component>
+                    <Component Id="cmp142D2A43DF5CD6851254A664CE74798C" Guid="*">
+                        <File Id="filF59EAA37715A78DD39A21605FC5D7706" KeyPath="yes" Source="$(var.PublicSourceDir)\images\help\sqlrunner.png" />
+                    </Component>
+                    <Component Id="cmp3A478E186EE35679CB94A0C3E8674A9E" Guid="*">
+                        <File Id="fil7CF567CEF102BD8CEBEA22525DBB69E1" KeyPath="yes" Source="$(var.PublicSourceDir)\images\help\tuning.png" />
+                    </Component>
+                </Directory>
+            </Directory>
+            <Directory Id="dirC61AFD71E6CDA2513963AC53DA7924B7" Name="js">
+                <Component Id="cmpD6648C2CC3F57E158EA639DF22FAD131" Guid="*">
+                    <File Id="filDAB239EB7FF1CC8A53A77A6E56431AEC" KeyPath="yes" Source="$(var.PublicSourceDir)\js\app-shell.js" />
+                </Component>
+                <Component Id="cmpEF3678F27117F71C5B0DB6222ADEA71D" Guid="*">
+                    <File Id="filE199C10094581E67B5F3617AFC32B48F" KeyPath="yes" Source="$(var.PublicSourceDir)\js\cards.js" />
+                </Component>
+                <Component Id="cmp56B7786BEC97120E298C218F17271153" Guid="*">
+                    <File Id="filA6E940E23874DF3722176359A3AB0147" KeyPath="yes" Source="$(var.PublicSourceDir)\js\i18n.js" />
+                </Component>
+            </Directory>
+        </DirectoryRef>
+    </Fragment>
+    <Fragment>
+        <ComponentGroup Id="PublicComponents">
+            <ComponentRef Id="cmp44A0973E40D903ABDE78F3BB5C03B77D" />
+            <ComponentRef Id="cmp93076D5EFAECDA288ED84BF0F3A95337" />
+            <ComponentRef Id="cmpB001258345C597A5A7A5ECDBA52D8555" />
+            <ComponentRef Id="cmp36C59A5312801038F573F5F90E6B4AE7" />
+            <ComponentRef Id="cmpC28D3F2DF5F3D7572DA14E3970810481" />
+            <ComponentRef Id="cmp5ADB254A8B587D43490E4A902A7E1E6A" />
+            <ComponentRef Id="cmpEC121E652EBA8E06554325B8D2829300" />
+            <ComponentRef Id="cmp85C0A4F2796CF3D5FB44A228B6FB0EB8" />
+            <ComponentRef Id="cmp0C17B2767947194BB14F3A78E9446A80" />
+            <ComponentRef Id="cmp12DF48CA19A162D1AA8ED8B35B060310" />
+            <ComponentRef Id="cmp85AA77D531B246CFA16365D5ADFE0661" />
+            <ComponentRef Id="cmp04B8329805F150596909BC3A23E52631" />
+            <ComponentRef Id="cmp9F0EE1E80EC2A59B1973A07DF228F2EB" />
+            <ComponentRef Id="cmp28B3BA347CE81476386D5636CE41AC17" />
+            <ComponentRef Id="cmp72E08DB99D3E5D5325EC96A92EB7E575" />
+            <ComponentRef Id="cmp142D2A43DF5CD6851254A664CE74798C" />
+            <ComponentRef Id="cmp3A478E186EE35679CB94A0C3E8674A9E" />
+            <ComponentRef Id="cmpD6648C2CC3F57E158EA639DF22FAD131" />
+            <ComponentRef Id="cmpEF3678F27117F71C5B0DB6222ADEA71D" />
+            <ComponentRef Id="cmp56B7786BEC97120E298C218F17271153" />
+        </ComponentGroup>
+    </Fragment>
+</Wix>

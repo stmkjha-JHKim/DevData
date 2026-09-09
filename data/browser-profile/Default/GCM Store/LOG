@@ -1,2 +1,3 @@
-2026/09/08-15:49:11.005 7698 Creating DB D:\STMKJHA\69.DevData\data\browser-profile\Default\GCM Store since it was missing.
-2026/09/08-15:49:11.344 7698 Reusing MANIFEST D:\STMKJHA\69.DevData\data\browser-profile\Default\GCM Store/MANIFEST-000001
+2026/09/09-15:04:42.603 6740 Reusing MANIFEST D:\STMKJHA\69.DevData\data\browser-profile\Default\GCM Store/MANIFEST-000001
+2026/09/09-15:04:42.604 6740 Recovering log #3
+2026/09/09-15:04:42.604 6740 Reusing old log D:\STMKJHA\69.DevData\data\browser-profile\Default\GCM Store/000003.log 
