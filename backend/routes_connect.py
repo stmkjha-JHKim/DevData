@@ -98,6 +98,61 @@ async def browser_closing(request: Request) -> Response:
     return Response(status_code=204)
 
 
+# Shared by /api/connect (manual entry) and /api/connect-favorite (a saved
+# favorite decrypted server-side -- see below): everything past "here is a
+# creds dict, try it and remember it" is identical either way. `creds`
+# itself (password included) never comes back out of this function in any
+# form -- only a plain success/failure message, so neither caller has to
+# remember to scrub it.
+async def _connect_and_store_session(creds: dict, session: Session) -> dict:
+    connection = None
+    try:
+        connection = await get_oracle_connection(creds)
+        # Simple query to confirm the connection
+        cursor = connection.cursor()
+        await cursor.execute("SELECT 1 FROM dual")
+
+        # Store the connection info in the session so it can be reused on
+        # the main screen (DB status lookup)
+        session.set("db_creds", creds)
+
+        # Also cache it at module scope so the Weekly DB Health Report
+        # collector keeps running against the right DB -- see
+        # core.last_connected_creds's comment -- and kick off an immediate
+        # background snapshot (fire-and-forget) so the report's history
+        # starts filling in right away instead of waiting up to 15 minutes.
+        core.last_connected_creds = creds
+        report.trigger_immediate_collection(creds)
+
+        return {
+            "success": True,
+            "message": f"Connected successfully to {creds['account']}@{creds['ip']}:{creds['port']}:{creds['sid']}.",
+        }
+    except Exception as err:
+        session.set("db_creds", None)
+        # NOTE: the archived legacy-nodejs version special-cased
+        # node-oracledb's NJS-138 (server older than Oracle 12.1,
+        # unsupported in thin mode) to append a friendlier note.
+        # python-oracledb raises a different error for the same situation;
+        # carrying that same friendly note over is a follow-up once
+        # verified against an actual pre-12.1 Oracle instance, rather than
+        # guessing the error text/code here.
+        #
+        # `err` is python-oracledb's own exception -- an auth/network
+        # failure message (e.g. "ORA-01017: invalid username/password"),
+        # never the credentials themselves. build_connect_string() also
+        # never embeds the password into the DSN it builds, so there's no
+        # path from a raised connection error back to the plaintext
+        # password here.
+        return {"success": False, "message": f"Connection failed: {err}"}
+    finally:
+        if connection:
+            try:
+                await connection.close()
+            except Exception as close_err:
+                print(f"Error while closing connection: {close_err}")
+
+
 @router.post("/api/connect")
 async def connect(request: Request, session: Session = Depends(get_session)):
     body = await request.json()
@@ -116,48 +171,56 @@ async def connect(request: Request, session: Session = Depends(get_session)):
             status_code=400,
         )
 
-    connection = None
-    try:
-        connection = await get_oracle_connection(
-            {"ip": ip, "port": port, "sid": sid, "account": account, "password": password}
+    creds = {"ip": ip, "port": port, "sid": sid, "account": account, "password": password}
+    return await _connect_and_store_session(creds, session)
+
+
+# Connects using a saved favorite's stored credentials without the browser
+# ever handling (or even receiving) the decrypted password -- see
+# favorites.py's public_view()/get_favorite() split. Only a favoriteId
+# crosses the wire; the password is decrypted from favorites.enc entirely
+# server-side and never appears in this endpoint's own response, whether
+# it succeeds or fails.
+@router.post("/api/connect-favorite")
+async def connect_favorite(request: Request, session: Session = Depends(get_session)):
+    body = await request.json()
+    fav_id = (body.get("favoriteId") or "").strip()
+    if not fav_id:
+        return JSONResponse(
+            {"success": False, "message": "A favoriteId is required."}, status_code=400
         )
-        # Simple query to confirm the connection
-        cursor = connection.cursor()
-        await cursor.execute("SELECT 1 FROM dual")
 
-        creds = {"ip": ip, "port": port, "sid": sid, "account": account, "password": password}
-        # Store the connection info in the session so it can be reused on
-        # the main screen (DB status lookup)
-        session.set("db_creds", creds)
-
-        # Also cache it at module scope so the Weekly DB Health Report
-        # collector keeps running against the right DB -- see
-        # core.last_connected_creds's comment -- and kick off an immediate
-        # background snapshot (fire-and-forget) so the report's history
-        # starts filling in right away instead of waiting up to 15 minutes.
-        core.last_connected_creds = creds
-        report.trigger_immediate_collection(creds)
-
-        return {
-            "success": True,
-            "message": f"Connected successfully to {account}@{ip}:{port}:{sid}.",
-        }
+    try:
+        favorite = favorites_store.get_favorite(fav_id)
     except Exception as err:
-        session.set("db_creds", None)
-        # NOTE: the archived legacy-nodejs version special-cased
-        # node-oracledb's NJS-138 (server older than Oracle 12.1,
-        # unsupported in thin mode) to append a friendlier note.
-        # python-oracledb raises a different error for the same situation;
-        # carrying that same friendly note over is a follow-up once
-        # verified against an actual pre-12.1 Oracle instance, rather than
-        # guessing the error text/code here.
-        return {"success": False, "message": f"Connection failed: {err}"}
-    finally:
-        if connection:
-            try:
-                await connection.close()
-            except Exception as close_err:
-                print(f"Error while closing connection: {close_err}")
+        # A corrupted/undecryptable favorites.enc is already treated as "no
+        # favorites" by favorites.py's own _read_all() -- this branch is
+        # just defense in depth against some other unexpected failure
+        # (disk I/O, etc.), reported without ever including `err`'s
+        # str() if it could somehow echo file contents.
+        return JSONResponse(
+            {"success": False, "message": "Failed to read the favorites store."}, status_code=500
+        )
+
+    if not favorite:
+        # Covers every case requirement #5 asks for uniformly: an id that
+        # never existed, a forged/tampered id, and the race where the
+        # favorite was deleted a moment before this request arrived -- all
+        # look identical from here (get_favorite() returns None for each),
+        # and all get the same safe, non-revealing 404.
+        return JSONResponse(
+            {"success": False, "message": "That favorite no longer exists. It may have just been deleted."},
+            status_code=404,
+        )
+
+    creds = {
+        "ip": favorite["ip"],
+        "port": favorite["port"],
+        "sid": favorite["sid"],
+        "account": favorite["account"],
+        "password": favorite["password"],
+    }
+    return await _connect_and_store_session(creds, session)
 
 
 @router.post("/api/logout")
@@ -174,7 +237,9 @@ async def logout(session: Session = Depends(get_session)):
 @router.get("/api/favorites")
 async def get_favorites():
     try:
-        return {"success": True, "favorites": favorites_store.list_favorites()}
+        # list_favorites_public() -- never list_favorites() -- so password
+        # never leaves favorites.py for this route. See its own comment.
+        return {"success": True, "favorites": favorites_store.list_favorites_public()}
     except Exception as err:
         return {"success": False, "message": f"Failed to load favorites: {err}"}
 
@@ -182,18 +247,32 @@ async def get_favorites():
 @router.post("/api/favorites")
 async def save_favorite_endpoint(request: Request):
     body = await request.json()
-    required_fields = ("name", "ip", "port", "sid", "account", "password")
+    # password is deliberately not in this required list: omitting it is
+    # how the browser asks to keep an existing favorite's current password
+    # unchanged (it never has that password to send back in the first
+    # place -- see favorites.py's save_favorite() for what happens when
+    # it's left out for a genuinely new favorite instead).
+    required_fields = ("name", "ip", "port", "sid", "account")
     if not all(body.get(field) for field in required_fields):
         return JSONResponse(
             {
                 "success": False,
-                "message": "Please fill in all fields (Name, IP, Port, SID, Account, Password).",
+                "message": "Please fill in all fields (Name, IP, Port, SID, Account).",
             },
             status_code=400,
         )
     try:
         saved = favorites_store.save_favorite(body)
-        return {"success": True, "favorite": saved}
+        # public_view(), not the raw record straight out of save_favorite()
+        # -- the whole point of this endpoint is that the password it just
+        # wrote (whether newly supplied or carried over unchanged) never
+        # comes back out over the wire.
+        return {"success": True, "favorite": favorites_store.public_view(saved)}
+    except ValueError as err:
+        # save_favorite() raises this specifically for "new favorite, no
+        # password given" -- a genuine input-validation error (400), not a
+        # server-side failure (500).
+        return JSONResponse({"success": False, "message": str(err)}, status_code=400)
     except Exception as err:
         return {"success": False, "message": f"Failed to save favorite: {err}"}
 

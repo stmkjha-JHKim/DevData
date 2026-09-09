@@ -97,20 +97,70 @@ def _write_all(favorites_list: list) -> None:
     FAVORITES_FILE.write_text(_encrypt(favorites_list), encoding="utf-8")
 
 
+# Fields safe to hand back to the browser -- everything in a favorite
+# record *except* password. Used everywhere a favorite crosses the API
+# boundary (the list endpoint, and the save endpoint's own response) so
+# there's exactly one place that decides what "safe to show" means,
+# rather than every call site having to remember to drop the field itself.
+PUBLIC_FIELDS = ("id", "name", "ip", "port", "sid", "account")
+
+
+def public_view(record: dict) -> dict:
+    return {k: record.get(k) for k in PUBLIC_FIELDS}
+
+
 def list_favorites() -> list:
+    """Full records, password included -- for internal server-side use
+    only (save_favorite's own overwrite-by-id lookup, connect-favorite's
+    decrypt-and-connect). Never return this directly from an API route;
+    see list_favorites_public()/public_view() for what a route should
+    actually send to the browser."""
     return _read_all()
+
+
+def list_favorites_public() -> list:
+    """What GET /api/favorites actually returns: every field a saved
+    connection needs to display and reconnect through, except the
+    password itself -- see public_view()."""
+    return [public_view(f) for f in _read_all()]
+
+
+def get_favorite(fav_id: str) -> Optional[dict]:
+    """Full record (password included) for one favorite by id, or None if
+    it doesn't exist -- a forged/stale/already-deleted id is simply "not
+    found", the same as a corrupted store (_read_all() already treats that
+    as an empty list rather than raising). Internal server-side use only
+    (POST /api/connect-favorite); never returned to a route as-is."""
+    if not fav_id:
+        return None
+    for f in _read_all():
+        if f.get("id") == fav_id:
+            return f
+    return None
 
 
 # Upserts by id: a new favorite gets a generated id, an existing one (same
 # id passed back in, e.g. when the user chose to overwrite an existing
 # name) is replaced in place.
+#
+# `favorite["password"]` is optional: omitted (or empty/None) while
+# overwriting an *existing* id keeps that favorite's current password
+# unchanged -- the only way this can work at all, since the browser is
+# never given the decrypted password back to resend in the first place
+# (see public_view() above). A blank password is only rejected outright
+# for a genuinely new favorite, where there is no existing password to
+# fall back to.
 def save_favorite(favorite: dict) -> dict:
     favorites_list = _read_all()
     fav_id = favorite.get("id")
-    if fav_id and any(f["id"] == fav_id for f in favorites_list):
-        resolved_id = fav_id
-    else:
-        resolved_id = f"fav_{int(time.time() * 1000)}_{secrets.token_hex(4)}"
+    existing = next((f for f in favorites_list if f["id"] == fav_id), None) if fav_id else None
+    resolved_id = existing["id"] if existing else f"fav_{int(time.time() * 1000)}_{secrets.token_hex(4)}"
+
+    password = favorite.get("password") or None
+    if password is None:
+        if existing is None:
+            raise ValueError("A password is required to save a new favorite.")
+        password = existing["password"]
 
     record = {
         "id": resolved_id,
@@ -119,7 +169,7 @@ def save_favorite(favorite: dict) -> dict:
         "port": favorite["port"],
         "sid": favorite["sid"],
         "account": favorite["account"],
-        "password": favorite["password"],
+        "password": password,
     }
     idx = next((i for i, f in enumerate(favorites_list) if f["id"] == resolved_id), -1)
     if idx >= 0:

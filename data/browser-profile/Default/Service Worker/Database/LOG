@@ -1,2 +1,3 @@
-2026/09/09-15:04:36.701 7440 Creating DB D:\STMKJHA\69.DevData\data\browser-profile\Default\Service Worker\Database since it was missing.
-2026/09/09-15:04:36.975 7440 Reusing MANIFEST D:\STMKJHA\69.DevData\data\browser-profile\Default\Service Worker\Database/MANIFEST-000001
+2026/09/09-16:36:11.054 7220 Reusing MANIFEST D:\STMKJHA\69.DevData\data\browser-profile\Default\Service Worker\Database/MANIFEST-000001
+2026/09/09-16:36:11.074 7220 Recovering log #3
+2026/09/09-16:36:11.075 7220 Reusing old log D:\STMKJHA\69.DevData\data\browser-profile\Default\Service Worker\Database/000003.log 
