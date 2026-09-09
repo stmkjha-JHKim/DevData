@@ -86,6 +86,19 @@ try:
 except OSError:
     APP_VERSION = "unknown"
 
+# Demo mode: flipped on by the mere presence of a DEMO marker file next to
+# the .exe/VERSION -- dropped there only by build-demo.ps1's packaging
+# step, never by a normal build.ps1/build-folder.ps1/build-installer.ps1
+# run. Checked once at import time (like APP_VERSION above) since it can't
+# change while the process is running. Read by /api/version so the
+# frontend knows to disable demo-restricted UI (the session list's
+# right-click menu, the Table Statistics Collection card's gather-stats
+# actions, and every tab except DashBoard/Ops -- see app-shell.js's
+# applyDemoModeUi()), and independently re-checked server-side by the
+# handful of mutating endpoints those restrictions guard, so the
+# restriction holds even if a client bypasses the UI.
+IS_DEMO_MODE = (app_dir() / "DEMO").exists()
+
 # The most recently successful /api/connect credentials, kept at module
 # scope (outside any one session) so the background "Weekly DB Health
 # Report" snapshot collector (report.py) can keep running against the

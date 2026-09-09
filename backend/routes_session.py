@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
 
 import sql_plan_analysis
-from .core import Session, dict_rowfactory, get_oracle_connection, get_session, invalidate_cached_result
+from .core import IS_DEMO_MODE, Session, dict_rowfactory, get_oracle_connection, get_session, invalidate_cached_result
 
 router = APIRouter()
 
@@ -281,6 +281,10 @@ async def kill_session(request: Request, session: Session = Depends(get_session)
     creds = session.get("db_creds")
     if not creds:
         return JSONResponse({"success": False, "message": "Login required."}, status_code=401)
+    if IS_DEMO_MODE:
+        return JSONResponse(
+            {"success": False, "message": "This action is disabled in the demo version."}, status_code=403
+        )
 
     body = await request.json()
     try:

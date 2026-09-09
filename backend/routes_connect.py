@@ -37,7 +37,7 @@ router = APIRouter()
 
 @router.get("/api/version")
 async def get_version():
-    return {"success": True, "version": core.APP_VERSION}
+    return {"success": True, "version": core.APP_VERSION, "demoMode": core.IS_DEMO_MODE}
 
 
 # --- End the DB session when the browser actually closes ---

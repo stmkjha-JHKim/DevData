@@ -5,7 +5,7 @@ runs, and the "View Table Properties" detail lookup."""
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
 
-from .core import IDENT_RE, Session, dict_rowfactory, get_oracle_connection, get_session
+from .core import IDENT_RE, IS_DEMO_MODE, Session, dict_rowfactory, get_oracle_connection, get_session
 
 router = APIRouter()
 
@@ -112,6 +112,10 @@ async def gather_table_stats(request: Request, session: Session = Depends(get_se
     creds = session.get("db_creds")
     if not creds:
         return JSONResponse({"success": False, "message": "Login required."}, status_code=401)
+    if IS_DEMO_MODE:
+        return JSONResponse(
+            {"success": False, "message": "This action is disabled in the demo version."}, status_code=403
+        )
 
     body = await request.json()
     owner = str(body.get("owner") or "").strip()
@@ -172,6 +176,10 @@ async def gather_table_stats_batch(request: Request, session: Session = Depends(
     creds = session.get("db_creds")
     if not creds:
         return JSONResponse({"success": False, "message": "Login required."}, status_code=401)
+    if IS_DEMO_MODE:
+        return JSONResponse(
+            {"success": False, "message": "This action is disabled in the demo version."}, status_code=403
+        )
 
     body = await request.json()
     owner = str(body.get("owner") or "").strip()
