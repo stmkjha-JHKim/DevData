@@ -69,7 +69,7 @@ Right-click the OraPulse icon in the Windows notification area and select **Exit
 ## Known Limitations
 
 - Oracle Database 11g and earlier versions are not supported.
-- The Weekly DB Health Report feature is not currently included in the Windows executable release.
+- The Check Report feature is not currently included in the Windows executable release.
 - Because the executable is not digitally signed, Windows may display a security warning on first launch.
 
 ## Support and Bug Reports

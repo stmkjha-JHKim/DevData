@@ -347,9 +347,9 @@ async def db_status_sessions(session: Session = Depends(get_session)):
     try:
         cursor = connection.cursor()
         await cursor.execute(
-            """SELECT sid, serial_num, status, machine, program, logon_time_str, sql_id
+            """SELECT sid, serial_num, status, machine, osuser, program, logon_time_str, sql_id
                  FROM (
-                   SELECT sid, serial# AS serial_num, status, machine, program, sql_id,
+                   SELECT sid, serial# AS serial_num, status, machine, osuser, program, sql_id,
                           TO_CHAR(logon_time, 'YYYY-MM-DD HH24:MI:SS') AS logon_time_str
                      FROM v$session
                     WHERE type = 'USER' AND (program IS NULL OR program != :client_program)

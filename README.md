@@ -33,6 +33,7 @@ to be a small local web server.
   `V$INSTANCE.VERSION_FULL`, startup time, uptime)
 - CPU / Memory usage
 - Current Session List -- ACTIVE sessions first, then oldest-login-first;
+  columns are SID/SERIAL#/Status/Machine/OSUSER/Program/Logon Time/SQL_ID;
   Status/Machine/Program filters; right-click a row to **Kill Session
   (IMMEDIATE)**, view its running query, or view wait detail (with a
   file/block object lookup against `DBA_EXTENTS` for file/block-based waits);
@@ -55,12 +56,18 @@ Instance Efficiency % and Load Profile side by side; then, one per row:
 TEMP Tablespace Usage, TEMP Usage by Session, Datafile Autoextend Status
 (MAXSIZE proximity), Redo Log Status, Tablespace I/O Stats (sorted by
 physical reads), Top 5 Long-Running Queries, Top 5 SQL by CPU Time, Top 5
-SQL by Buffer Gets, and Top 5 Wait Events. Every card here is freely
-drag-and-drop reorderable (including across tabs), with the layout
-persisted to `localStorage` and merged against the app's own default order
-on load, so an app update that changes the default doesn't get silently
-overridden by an old saved layout, and a card missing from an old saved
-layout still lands in its correct place instead of jumping to one end.
+SQL by Buffer Gets, and Top 5 Wait Events. TEMP Tablespace Usage's
+percentage is against each tempfile's own max extend size (autoextend
+MAXBYTES, or its current size if autoextend is off) rather than the
+currently allocated total -- the same reasoning Datafile Autoextend
+Status already uses, and shown side by side with a Max Size column so
+the two bases are never conflated with a plain "current allocation"
+percentage. Every card here is freely drag-and-drop reorderable
+(including across tabs), with the layout persisted to `localStorage` and
+merged against the app's own default order on load, so an app update
+that changes the default doesn't get silently overridden by an old saved
+layout, and a card missing from an old saved layout still lands in its
+correct place instead of jumping to one end.
 
 ### Recovery tab
 Recent DML (top 50, most recent first, with Type/Schema filters), Fast
@@ -87,16 +94,71 @@ fetches its DDL via `DBMS_METADATA.GET_DDL` and shows it on the right.
 Below it, a read-only **SQL Query Runner**: single-statement `SELECT`
 only, capped at 200 rows, CLOBs rendered as text (BLOBs are out of scope).
 
-### Weekly DB Health Report
-A **Report** button generates a self-contained HTML report (inline SVG
-charts, no external dependencies) covering the trailing N days of the
-connected DB's status. Since most of what a report needs comes from `V$`
-views with no history behind them, a lightweight snapshot collector runs
-every 15 minutes in the background (started as soon as a connection
-succeeds, independent of the browser staying open) and appends to an
-AES-256-GCM-encrypted local history file -- a tiny, license-free stand-in
-for an AWR repository. Clicking Report writes the finished HTML to a
-`report/<YYYY-MM-DD>/` folder created next to the running app.
+### Check Report
+A **Check Report** button (next to Refresh) generates a self-contained
+HTML inspection report (no external dependencies, no external CDN/font/
+image requests) for the currently connected DB, as of the exact moment
+it's clicked -- that instant is recorded once and used both as the
+report's own reference time and in its filename; the actual collection
+start/end timestamps (and this PC's own timezone) are shown alongside it.
+
+The report opens with a summary dashboard built from the same structured
+check results as the detail table further down -- never by re-parsing
+rendered HTML text, so the numbers and the per-item status can't drift
+apart:
+- 4 summary cards -- priority-review count (danger+warning), CPU usage,
+  sessions used/limit, peak tablespace usage.
+- An inline-SVG donut chart of how many of the 23 check items landed in
+  each status; the counts always sum to 23.
+- Capacity/resource usage bars for memory, processes, sessions, the
+  worst tablespace, and TEMP -- each bar's label states its own
+  denominator, since e.g. tablespace/TEMP usage is against each
+  datafile's own max extend size while sessions/processes are against
+  their current limit (see the Ops tab above for the same distinction).
+  A value that can't be computed (an `UNLIMITED` limit, a zero
+  denominator, no memory target configured, a failed query) always
+  renders as an explicit "Unavailable" reason, never a fabricated 0/0%.
+- A dynamic Priority Review list of whichever items actually came back
+  danger/warning in *this* run, most severe first -- never a fixed topic
+  (e.g. "backup failure") hardcoded regardless of what was actually
+  found; it says so plainly when nothing is danger/warning.
+- A Top SQL bar chart comparing the top queries' cumulative elapsed time
+  (from `V$SQL`) on one common linear scale starting at 0 -- that figure
+  keeps accumulating while a statement stays in the shared pool, so it's
+  explicitly labeled as cumulative, never a single execution's time or
+  this check's own window.
+
+Below the dashboard, it runs a fixed checklist of 23 read-only queries
+against `V$`/`DBA_` views (instance & patch level, alert log,
+tablespace/datafile and TEMP/UNDO capacity, RMAN backup history [with an
+explicit "no date filter, check each job's own timestamp" note, so an
+old failure is never implied to be from *this* check's own moment],
+CPU/memory, wait events, top SQL, session/process limits, locks,
+accounts, invalid objects, optimizer statistics, scheduler jobs, archive
+log/FRA usage, and -- where applicable -- RAC/ASM/Data Guard/CDB-PDB),
+marking each item OK/Warning/Critical/Info/N-A/Unavailable/Collection
+Failed rather than guessing at a verdict it can't actually support --
+e.g. ASM with a successful query but no disk groups found is N-A ("not
+in use"), a *failed* ASM query is Collection Failed, and a PRIMARY
+database with no Data Guard stats rows is Unavailable (there genuinely
+isn't enough basis to call it confidently "no Data Guard"), rather than
+collapsing distinct situations into one ambiguous label. A failed query
+shows its own error and never blocks the rest of the report. AWR/ASH/
+ADDM are never queried (Diagnostics/Tuning Pack license is never
+assumed) -- that item is always marked Unavailable rather than silently
+omitted. The "vs. last month" line always reads "no comparison data" by
+design, since previous reports aren't stored/compared yet -- no trend
+graph or month-over-month number is ever invented. Every report also has
+a **Print / Save as PDF** button, backed by a dedicated A4-portrait print
+stylesheet (repeating table header rows, no card/table split across a
+page break).
+
+The finished report is named
+`OraPulse_CheckReport_<YYYYMMDD_HHmmss>.html` after the click instant and
+written to a `report/<YYYY-MM-DD>/` folder created next to the running
+app (or under `%LOCALAPPDATA%\OraPulse\reports\` if that location isn't
+actually writable -- see Data storage & privacy below), never
+overwriting an existing file of the same name.
 
 ### Favorites
 Save a connection's IP/Port/SID/account (password included) to a local,
@@ -136,9 +198,17 @@ neither Chrome nor Edge is found.
 ### Help tab
 A built-in, illustrated user manual (bilingual, with real screenshots of
 every card) covering every feature above -- no internet connection or
-external docs needed, since it's bundled straight into the app. Includes
-a search box that highlights every match in the manual and steps through
-them (Enter, or the up/down buttons).
+external docs needed, since it's bundled straight into the app. Opens
+with a quick-start walkthrough for first-time users (what to prepare,
+the connect-check-inspect-report flow) and closes with a troubleshooting/
+FAQ section (connection failures, missing privileges, data not
+refreshing, what Collection Failed/Unavailable/N-A actually mean, report
+save failures) written as symptom -> likely cause -> what to check ->
+fix. Every screenshot enlarges on click (a small built-in lightbox, no
+external library); a search box highlights every match in the manual and
+steps through them (Enter, or the up/down buttons); the manual states its
+own last-updated date and which app version it documents, right at the
+top.
 
 ### Other
 - English / Korean language toggle (persisted; a few labels -- "DashBoard",
@@ -174,8 +244,8 @@ orapulse/
 │   ├── routes_alert_log.py # Alert Log Analysis
 │   ├── routes_ops.py       # Ops tab
 │   ├── routes_recovery.py  # Recovery tab
-│   └── routes_report.py    # Weekly DB Health Report generation
-├── report.py                # Weekly DB Health Report: snapshot collector + HTML renderer
+│   └── routes_report.py    # Check Report generation
+├── report.py                # Check Report: point-in-time inspection checklist + HTML renderer
 ├── favorites.py              # Encrypted local favorites store
 ├── tuning.py                 # Rule-based Tuning Advisor
 ├── browser.py               # Opens the isolated browser profile at launch (see Desktop packaging)
@@ -302,17 +372,19 @@ additional option, not a replacement.
 
 Where OraPulse stores its data depends on how it's running:
 
-- **Running from source, or the portable exe/folder/Inno-installed
-  build:** everything lives in a `data/` folder created next to the
-  running app (the exe, or `main.py` when run from source) -- exactly as
-  before.
-- **Installed via the MSI** (see above), which installs to
-  `C:\Program Files\OraPulse(ODM)`: a non-admin user can't write there at
-  runtime, so a frozen build instead stores everything under
-  `%LOCALAPPDATA%\OraPulse\`:
+- **Running from source, or any frozen build whose install folder is
+  actually writable** (the portable exe/folder, Inno-installed, or the
+  MSI installed somewhere other than Program Files): everything lives in
+  a `data/` folder created next to the running app (the exe, or
+  `main.py` when run from source) -- exactly as before. OraPulse checks
+  this by actually trying to write there at startup, not by assuming
+  based on how it was installed.
+- **Installed via the MSI to its default `C:\Program Files\OraPulse(ODM)`**
+  (see above): a non-admin user can't write there at runtime, so the app
+  falls back to storing everything under `%LOCALAPPDATA%\OraPulse\`:
   - `%LOCALAPPDATA%\OraPulse\data\` -- the same files as the portable
     build's `data/` folder (see the list below)
-  - `%LOCALAPPDATA%\OraPulse\reports\` -- Weekly DB Health Report output
+  - `%LOCALAPPDATA%\OraPulse\reports\` -- Check Report output
     (was `report/` next to the exe)
   - `%LOCALAPPDATA%\OraPulse\logs\` -- reserved for future use; nothing
     writes here yet

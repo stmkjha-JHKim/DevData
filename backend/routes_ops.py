@@ -271,17 +271,38 @@ async def ops_usage(session: Session = Depends(get_session)):
     except Exception as err:
         result["keyParameters"] = {"ok": False, "message": f"You do not have permission to view this. ({err})"}
 
-    # TEMP Tablespace Usage.
+    # TEMP Tablespace Usage. Percent is against each tempfile's own max size
+    # (autoextend MAXBYTES when autoextensible, otherwise its current size),
+    # not against the currently allocated total -- an autoextensible temp
+    # file that's mostly-full today but can still grow to 32 GB shouldn't
+    # read as "95% used" when it's really nowhere near its actual ceiling.
     try:
         cursor = connection.cursor()
         await cursor.execute(
-            """SELECT tablespace_name,
-                      ROUND(SUM(bytes_used) / 1024 / 1024 / 1024, 2) AS used_gb,
-                      ROUND(SUM(bytes_free) / 1024 / 1024 / 1024, 2) AS free_gb,
-                      ROUND(SUM(bytes_used + bytes_free) / 1024 / 1024 / 1024, 2) AS total_gb,
-                      ROUND(SUM(bytes_used) / SUM(bytes_used + bytes_free) * 100, 2) AS used_pct
-                 FROM v$temp_space_header
-                GROUP BY tablespace_name"""
+            """WITH temp_max AS (
+                 SELECT tablespace_name,
+                        SUM(CASE WHEN autoextensible = 'YES' AND maxbytes > 0
+                                 THEN maxbytes ELSE bytes END) AS max_bytes
+                   FROM dba_temp_files
+                  GROUP BY tablespace_name
+               ),
+               temp_used AS (
+                 SELECT tablespace_name,
+                        SUM(bytes_used) AS used_bytes,
+                        SUM(bytes_free) AS free_bytes,
+                        SUM(bytes_used + bytes_free) AS alloc_bytes
+                   FROM v$temp_space_header
+                  GROUP BY tablespace_name
+               )
+               SELECT tu.tablespace_name,
+                      ROUND(tu.used_bytes / 1024 / 1024 / 1024, 2) AS used_gb,
+                      ROUND(tu.free_bytes / 1024 / 1024 / 1024, 2) AS free_gb,
+                      ROUND(tu.alloc_bytes / 1024 / 1024 / 1024, 2) AS total_gb,
+                      ROUND(tm.max_bytes / 1024 / 1024 / 1024, 2) AS max_gb,
+                      ROUND(tu.used_bytes / NULLIF(tm.max_bytes, 0) * 100, 2) AS used_pct
+                 FROM temp_used tu
+                 LEFT JOIN temp_max tm ON tm.tablespace_name = tu.tablespace_name
+                ORDER BY used_pct DESC NULLS LAST"""
         )
         dict_rowfactory(cursor)
         result["tempTablespaceUsage"] = {"ok": True, "data": await cursor.fetchall()}

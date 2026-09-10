@@ -69,7 +69,7 @@ Windows 알림 영역의 OraPulse 아이콘을 우클릭하고 **Exit**를 선�
 ## 알려진 제한 사항
 
 - Oracle Database 11g 이하는 지원하지 않습니다.
-- Weekly DB Health Report 생성 기능은 현재 Windows EXE 버전에 포함되어 있지 않습니다.
+- 점검레포트 생성 기능은 현재 Windows EXE 버전에 포함되어 있지 않습니다.
 - 디지털 서명이 없어 Windows에서 처음 실행할 때 보안 경고가 나타날 수 있습니다.
 
 ## 문의 및 오류 신고
