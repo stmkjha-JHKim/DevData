@@ -24,8 +24,13 @@ does NOT stop collection either (see main.py's last_connected_creds
 comment) -- only closing the browser (or exiting the app) does.
 
 Deliberately self-contained (own encryption, own DB connection, own SQL)
-rather than importing from main.py, matching report.js's own reasoning:
-this module could be dropped into another project unchanged.
+rather than importing from main.py/backend.core, matching report.js's own
+reasoning: this module could be dropped into another project largely
+unchanged. The one shared piece is oracle_dsn.py (turning ip/port/sid+
+connectType into a TNS connect descriptor) -- a zero-dependency leaf
+module, kept in sync with backend/core.py's own connection helper rather
+than duplicated a second time, since the SID-vs-Service-Name connect type
+has to behave identically everywhere a connection is opened.
 """
 
 import asyncio
@@ -42,6 +47,7 @@ from typing import Optional
 import oracledb
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
+from oracle_dsn import dsn_from_creds
 from paths import DATA_DIR
 
 SNAPSHOT_FILE = DATA_DIR / "snapshot-history.jsonl"
@@ -49,13 +55,6 @@ KEY_FILE = DATA_DIR / ".snapshot-key"
 
 SNAPSHOT_INTERVAL_SECONDS = 15 * 60  # 15 minutes
 RETENTION_SECONDS = 7 * 24 * 60 * 60  # 7 days -- matches the report's own window
-
-
-def build_connect_string(ip, port, sid) -> str:
-    return (
-        f"(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST={ip})(PORT={port}))"
-        f"(CONNECT_DATA=(SID={sid})))"
-    )
 
 
 def _ensure_data_dir() -> None:
@@ -147,6 +146,11 @@ def read_snapshots(days: int, target: Optional[dict] = None) -> list:
                 and t.get("ip") == target["ip"]
                 and str(t.get("port")) == str(target["port"])
                 and t.get("sid") == target["sid"]
+                # A stored snapshot predating this field defaults to "sid",
+                # exactly matching its only previous behavior -- a SID and
+                # a Service Name that happen to spell the same identifier
+                # are still not the same database and must not match.
+                and t.get("connectType", "sid") == target.get("connectType", "sid")
             )
         rows = [s for s in rows if matches(s)]
     rows.sort(key=lambda s: s.get("ts", 0))
@@ -222,7 +226,7 @@ def _map_memory(rows):
 # {"ok": False, "message": ...}; a failed connection just skips the whole
 # snapshot (logged, not raised) so one bad tick doesn't stop the collector.
 async def gather_snapshot(creds: dict) -> Optional[dict]:
-    connect_string = build_connect_string(creds["ip"], creds["port"], creds["sid"])
+    connect_string = dsn_from_creds(creds)
     try:
         connection = await oracledb.connect_async(
             user=creds["account"], password=creds["password"], dsn=connect_string
@@ -234,7 +238,10 @@ async def gather_snapshot(creds: dict) -> Optional[dict]:
     snapshot = {
         "ts": time.time() * 1000,
         "iso": datetime.utcnow().isoformat() + "Z",
-        "target": encrypt_target({"ip": creds["ip"], "port": creds["port"], "sid": creds["sid"]}),
+        "target": encrypt_target({
+            "ip": creds["ip"], "port": creds["port"], "sid": creds["sid"],
+            "connectType": creds.get("connectType", "sid"),
+        }),
         "main": {},
         "ops": {},
         "usage": {},
@@ -437,7 +444,7 @@ def trigger_immediate_collection(creds: dict) -> None:
 # built in. Mirrors the exact filtering logic used by /api/alert-log in
 # main.py (see the comment there for why "ORA-0"/"ORA-30" are excluded).
 async def fetch_alert_summary(creds: dict, days: int) -> dict:
-    connect_string = build_connect_string(creds["ip"], creds["port"], creds["sid"])
+    connect_string = dsn_from_creds(creds)
     try:
         connection = await oracledb.connect_async(
             user=creds["account"], password=creds["password"], dsn=connect_string
@@ -637,6 +644,46 @@ def _pct_status(pct, warn_at=75, danger_at=90):
     return STATUS_OK
 
 
+# A handful of checks below (TEMP/UNDO, CPU/memory, accounts, scheduler)
+# run two independent sub-queries and must report ONE combined status --
+# the bug this exists to prevent: naively requiring BOTH sub-queries to
+# fail before calling the item "failed" means a single failed sub-query
+# silently reads as "clean" whenever the other sub-query's own data
+# happens to show no risk (a missing value must never be treated as a
+# measured zero). _worse_status() combines two independently-judged
+# per-sub-query statuses so that:
+#   - a real danger/warning found in whichever half DID collect always
+#     wins over a mere collection failure in the other half (a real risk
+#     is never hidden just because something else couldn't be read), and
+#   - a collection failure is never itself silently downgraded to ok/info
+#     just because the other half happened to look fine.
+_STATUS_SEVERITY = {
+    STATUS_DANGER: 4, STATUS_WARN: 3, STATUS_FAILED: 2,
+    STATUS_INFO: 1, STATUS_OK: 0, STATUS_UNAVAILABLE: 0, STATUS_NA: 0,
+}
+
+
+def _worse_status(a, b):
+    return a if _STATUS_SEVERITY.get(a, 0) >= _STATUS_SEVERITY.get(b, 0) else b
+
+
+# V$RMAN_BACKUP_JOB_DETAILS.STATUS's own documented values (Oracle only
+# ever writes one of these five) -- matched by exact value, not by a loose
+# "contains FAIL" substring, which silently let "COMPLETED WITH WARNINGS"
+# (and any future/unrecognized status string) read as a clean success.
+_BACKUP_STATUS_MAP = {
+    "COMPLETED": "completed",
+    "COMPLETED WITH WARNINGS": "warned",
+    "COMPLETED WITH ERRORS": "errored",
+    "FAILED": "failed",
+    "RUNNING": "running",
+}
+
+
+def _classify_backup_status(raw_status):
+    return _BACKUP_STATUS_MAP.get((raw_status or "").strip().upper(), "unknown")
+
+
 async def _collect_checks(connection, creds: dict, lang: str):
     def L(ko, en):
         return ko if lang == "ko" else en
@@ -795,30 +842,48 @@ async def _collect_checks(connection, creds: dict, lang: str):
                   (SELECT tuned_undoretention FROM (SELECT tuned_undoretention FROM v$undostat ORDER BY end_time DESC) WHERE ROWNUM=1) AS tuned_retention_sec
              FROM dual""",
     )
-    if err and undo_err:
-        add("capacity", "TEMP·UNDO", L("V$TEMP_SPACE_HEADER, DBA_TEMP_FILES, V$UNDOSTAT 조회", "Query V$TEMP_SPACE_HEADER, DBA_TEMP_FILES, V$UNDOSTAT"),
-            L("TEMP 최대 크기 대비 여유 확인, UNDO 보존시간 확보", "TEMP has free space vs. its max size; UNDO retention is adequate"),
-            STATUS_FAILED, "-", f"{err}; {undo_err}")
-        metrics["temp"] = {"error": err}
+    temp_worst_row = None
+    for r in (rows or []):
+        p = _num(r.get("USED_PCT"))
+        if p is not None and (temp_worst_row is None or p > _num(temp_worst_row.get("USED_PCT"), -1)):
+            temp_worst_row = r
+    temp_worst = _num(temp_worst_row.get("USED_PCT")) if temp_worst_row else None
+    undo_sec = _num(undo_rows[0].get("TUNED_RETENTION_SEC")) if (undo_rows and not undo_err) else None
+
+    if err:
+        temp_status = STATUS_FAILED
+        temp_text = L(f"TEMP 조회 실패 ({err})", f"TEMP query failed ({err})")
+    elif temp_worst is not None:
+        temp_status = _pct_status(temp_worst, 85, 95)
+        temp_text = L(f"TEMP 최대 크기 대비 최고사용률 {fmt_num(temp_worst,1)}%", f"TEMP peak {fmt_num(temp_worst,1)}% of max")
     else:
-        temp_worst_row = None
-        for r in (rows or []):
-            p = _num(r.get("USED_PCT"))
-            if p is not None and (temp_worst_row is None or p > _num(temp_worst_row.get("USED_PCT"), -1)):
-                temp_worst_row = r
-        temp_worst = _num(temp_worst_row.get("USED_PCT")) if temp_worst_row else None
-        undo_sec = _num(undo_rows[0].get("TUNED_RETENTION_SEC")) if undo_rows else None
-        measured = L(
-            f"TEMP 최대 크기 대비 최고사용률 {fmt_num(temp_worst,1) if temp_worst is not None else '-'}% / UNDO 보존 {fmt_num(undo_sec,0) if undo_sec else '-'}초",
-            f"TEMP peak {fmt_num(temp_worst,1) if temp_worst is not None else '-'}% of max / UNDO retention {fmt_num(undo_sec,0) if undo_sec else '-'}s",
-        )
-        metrics["temp"] = (
-            {"error": err} if err
-            else {"worstPct": temp_worst, "worstName": temp_worst_row.get("TABLESPACE_NAME") if temp_worst_row else None}
-        )
-        add("capacity", "TEMP·UNDO", L("V$TEMP_SPACE_HEADER, DBA_TEMP_FILES, V$UNDOSTAT 조회", "Query V$TEMP_SPACE_HEADER, DBA_TEMP_FILES, V$UNDOSTAT"),
-            L("TEMP 최대 크기 대비 여유 확인, UNDO 보존시간 확보", "TEMP has free space vs. its max size; UNDO retention is adequate"),
-            _pct_status(temp_worst, 85, 95) if temp_worst is not None else STATUS_INFO, measured)
+        temp_status = STATUS_INFO
+        temp_text = L("TEMP 테이블스페이스 없음", "No TEMP tablespace found")
+
+    if undo_err:
+        undo_status = STATUS_FAILED
+        undo_text = L(f"UNDO 조회 실패 ({undo_err})", f"UNDO query failed ({undo_err})")
+    else:
+        # Retention itself isn't judged against a threshold in this check --
+        # only TEMP capacity is -- so a successful UNDO query never
+        # contributes anything worse than STATUS_OK on its own.
+        undo_status = STATUS_OK
+        undo_text = (L(f"UNDO 보존 {fmt_num(undo_sec,0)}초", f"UNDO retention {fmt_num(undo_sec,0)}s")
+                     if undo_sec is not None else L("UNDO 보존시간 확인 불가", "UNDO retention unavailable"))
+
+    status = _worse_status(temp_status, undo_status)
+    measured = f"{temp_text} / {undo_text}"
+    note = ""
+    if err or undo_err:
+        note = L("일부 항목 조회 실패 -- 위 측정값은 실제로 수집된 부분만 반영합니다", "Some sub-checks failed to collect -- the measured value above reflects only what was actually collected")
+
+    metrics["temp"] = (
+        {"error": err} if err
+        else {"worstPct": temp_worst, "worstName": temp_worst_row.get("TABLESPACE_NAME") if temp_worst_row else None}
+    )
+    add("capacity", "TEMP·UNDO", L("V$TEMP_SPACE_HEADER, DBA_TEMP_FILES, V$UNDOSTAT 조회", "Query V$TEMP_SPACE_HEADER, DBA_TEMP_FILES, V$UNDOSTAT"),
+        L("TEMP 최대 크기 대비 여유 확인, UNDO 보존시간 확보", "TEMP has free space vs. its max size; UNDO retention is adequate"),
+        status, measured, note)
 
     # ---- 06. Backup success / gaps -- V$RMAN_BACKUP_JOB_DETAILS has no
     #      date filter here (just "last 10 jobs"), so a failure surfaced
@@ -842,19 +907,56 @@ async def _collect_checks(connection, creds: dict, lang: str):
     elif not rows:
         add("backup", L("백업 성공·누락", "Backup Success/Gaps"),
             L("V$RMAN_BACKUP_JOB_DETAILS 조회", "Query V$RMAN_BACKUP_JOB_DETAILS"),
-            L("계획된 백업 모두 완료, 경고·실패·누락 없음", "All scheduled backups completed; no warning/failure/gap"),
+            L("백업 작업 이력 존재 여부만 확인 (예정된 백업의 존재·누락 여부는 이 조회만으로 판단하지 않음)",
+              "Only confirms whether any backup job history exists (this query alone does not judge whether a backup was scheduled or missed)"),
             STATUS_UNAVAILABLE, L("이력 없음", "No history found"),
             L("RMAN 백업 이력이 없거나 보존 기간이 지났습니다 (미수집)", "No RMAN backup history found, or it has aged out (not collected)"),
             period=backup_period)
     else:
-        failed_cnt = sum(1 for r in rows if r.get("STATUS") and "FAIL" in r["STATUS"].upper())
+        buckets = {"completed": 0, "warned": 0, "errored": 0, "failed": 0, "running": 0, "unknown": 0}
+        for r in rows:
+            buckets[_classify_backup_status(r.get("STATUS"))] += 1
         latest = rows[0]
-        measured = L(f"최근 {len(rows)}건 중 실패 {failed_cnt}건 (최신: {latest.get('INPUT_TYPE')} {latest.get('STATUS')} {latest.get('END_TIME')})",
-                     f"{failed_cnt} failed of last {len(rows)} (latest: {latest.get('INPUT_TYPE')} {latest.get('STATUS')} {latest.get('END_TIME')})")
+
+        hard_fail_cnt = buckets["failed"] + buckets["errored"]
+        attention_cnt = buckets["warned"] + buckets["unknown"]
+        if hard_fail_cnt > 0:
+            status = STATUS_DANGER
+        elif attention_cnt > 0:
+            status = STATUS_WARN
+        elif buckets["completed"] > 0:
+            status = STATUS_OK
+        else:
+            # Nothing in this window has actually finished yet (e.g. every
+            # row is still RUNNING) -- there's genuinely nothing to judge
+            # as clean or not yet, so this is not a confirmed success.
+            status = STATUS_INFO
+
+        breakdown_parts = []
+        if buckets["completed"]:
+            breakdown_parts.append(L(f"완료 {buckets['completed']}", f"completed {buckets['completed']}"))
+        if buckets["warned"]:
+            breakdown_parts.append(L(f"경고 포함 완료 {buckets['warned']}", f"completed with warnings {buckets['warned']}"))
+        if buckets["errored"]:
+            breakdown_parts.append(L(f"오류 포함 완료 {buckets['errored']}", f"completed with errors {buckets['errored']}"))
+        if buckets["failed"]:
+            breakdown_parts.append(L(f"실패 {buckets['failed']}", f"failed {buckets['failed']}"))
+        if buckets["running"]:
+            breakdown_parts.append(L(f"진행 중 {buckets['running']}", f"running {buckets['running']}"))
+        if buckets["unknown"]:
+            breakdown_parts.append(L(f"알 수 없는 상태 {buckets['unknown']}", f"unrecognized status {buckets['unknown']}"))
+        breakdown = ", ".join(breakdown_parts)
+
+        measured = L(
+            f"최근 {len(rows)}건 -- {breakdown} (최신: {latest.get('INPUT_TYPE')} {latest.get('STATUS')} {latest.get('END_TIME')})",
+            f"last {len(rows)} -- {breakdown} (latest: {latest.get('INPUT_TYPE')} {latest.get('STATUS')} {latest.get('END_TIME')})",
+        )
+        note = (L("이 앱이 인식하지 못하는 상태값이 있어 정상으로 단정하지 않았습니다", "Includes a status value this app doesn't recognize -- not assumed to be a clean success")
+                if buckets["unknown"] else "")
         add("backup", L("백업 성공·누락", "Backup Success/Gaps"),
             L("V$RMAN_BACKUP_JOB_DETAILS 조회", "Query V$RMAN_BACKUP_JOB_DETAILS"),
             L("계획된 백업 모두 완료, 경고·실패·누락 없음", "All scheduled backups completed; no warning/failure/gap"),
-            STATUS_DANGER if failed_cnt > 0 else STATUS_OK, measured,
+            status, measured, note,
             period=backup_period)
 
     # ---- 07. CPU / memory ----
@@ -873,37 +975,30 @@ async def _collect_checks(connection, creds: dict, lang: str):
                   ROUND(NVL((SELECT value FROM v$parameter WHERE name='pga_aggregate_target'),0)/1024/1024,1) AS pga_target_mb
              FROM dual""",
     )
-    if cpu_err and mem_err:
-        add("performance", L("CPU·메모리·응답시간", "CPU/Memory/Response Time"),
-            L("V$SYSMETRIC, V$SGA, V$PGASTAT 조회", "Query V$SYSMETRIC, V$SGA, V$PGASTAT"),
-            L("동일 업무 기준 대비 CPU/메모리 정상 범위", "CPU/memory within normal range for equivalent workload"),
-            STATUS_FAILED, "-", f"{cpu_err}; {mem_err}")
-        metrics["cpu"] = {"error": cpu_err}
-        metrics["memory"] = {"error": mem_err}
-    else:
-        cpu_pct = _num(cpu_rows[0]["VALUE"]) if cpu_rows else None
-        mem_info = _map_memory(mem_rows or [])["data"] if not mem_err else {}
-        mem_pct = mem_info.get("pct")
-        measured = L(f"CPU {fmt_num(cpu_pct,1) if cpu_pct is not None else '-'}% / 메모리 {fmt_num(mem_pct,1) if mem_pct is not None else '-'}%",
-                     f"CPU {fmt_num(cpu_pct,1) if cpu_pct is not None else '-'}% / Memory {fmt_num(mem_pct,1) if mem_pct is not None else '-'}%")
-        worst_status = STATUS_OK
-        for p in (cpu_pct, mem_pct):
-            s = _pct_status(p, 75, 90)
-            if s == STATUS_DANGER:
-                worst_status = STATUS_DANGER
-            elif s == STATUS_WARN and worst_status != STATUS_DANGER:
-                worst_status = STATUS_WARN
-        add("performance", L("CPU·메모리·응답시간", "CPU/Memory/Response Time"),
-            L("V$SYSMETRIC, V$SGA, V$PGASTAT 조회", "Query V$SYSMETRIC, V$SGA, V$PGASTAT"),
-            L("동일 업무 기준 대비 CPU/메모리 정상 범위", "CPU/memory within normal range for equivalent workload"),
-            worst_status, measured,
-            L("응답시간(p95)은 이 앱에서 별도 이력화하지 않아 비교자료없음", "Response-time (p95) history isn't tracked by this app -- no comparison data"))
-        metrics["cpu"] = {"error": cpu_err} if cpu_err else {"pct": cpu_pct}
-        metrics["memory"] = (
-            {"error": mem_err} if mem_err
-            else {"pct": mem_pct, "usedMb": mem_info.get("usedMb"), "targetMb": mem_info.get("targetMb"),
-                  "targetSource": mem_info.get("targetSource")}
-        )
+    cpu_pct = _num(cpu_rows[0]["VALUE"]) if (cpu_rows and not cpu_err) else None
+    mem_info = _map_memory(mem_rows or [])["data"] if not mem_err else {}
+    mem_pct = mem_info.get("pct")
+    measured = L(
+        f"CPU {fmt_num(cpu_pct,1) if cpu_pct is not None else '확인불가'}% / 메모리 {fmt_num(mem_pct,1) if mem_pct is not None else '확인불가'}%",
+        f"CPU {fmt_num(cpu_pct,1) if cpu_pct is not None else 'unavailable'}% / Memory {fmt_num(mem_pct,1) if mem_pct is not None else 'unavailable'}%",
+    )
+    cpu_status = STATUS_FAILED if cpu_err else (_pct_status(cpu_pct, 75, 90) if cpu_pct is not None else STATUS_INFO)
+    mem_status = STATUS_FAILED if mem_err else (_pct_status(mem_pct, 75, 90) if mem_pct is not None else STATUS_INFO)
+    status = _worse_status(cpu_status, mem_status)
+    note = L("응답시간(p95)은 이 앱에서 별도 이력화하지 않아 비교자료없음", "Response-time (p95) history isn't tracked by this app -- no comparison data")
+    partial_errs = [e for e in (cpu_err, mem_err) if e]
+    if partial_errs:
+        note = L(f"{note} / 일부 조회 실패: {'; '.join(partial_errs)}", f"{note} / partial collection failure: {'; '.join(partial_errs)}")
+    add("performance", L("CPU·메모리·응답시간", "CPU/Memory/Response Time"),
+        L("V$SYSMETRIC, V$SGA, V$PGASTAT 조회", "Query V$SYSMETRIC, V$SGA, V$PGASTAT"),
+        L("동일 업무 기준 대비 CPU/메모리 정상 범위", "CPU/memory within normal range for equivalent workload"),
+        status, measured, note)
+    metrics["cpu"] = {"error": cpu_err} if cpu_err else {"pct": cpu_pct}
+    metrics["memory"] = (
+        {"error": mem_err} if mem_err
+        else {"pct": mem_pct, "usedMb": mem_info.get("usedMb"), "targetMb": mem_info.get("targetMb"),
+              "targetSource": mem_info.get("targetSource")}
+    )
 
     # ---- 08. Wait events (cumulative since instance startup -- a single
     #      reading, no baseline to auto-judge against) ----
@@ -1013,19 +1108,26 @@ async def _collect_checks(connection, creds: dict, lang: str):
         "SELECT username, expiry_date, ROUND(expiry_date - SYSDATE) AS days_left FROM dba_users "
         "WHERE expiry_date IS NOT NULL AND expiry_date <= SYSDATE + 30",
     )
-    if locked_err and expiring_err:
-        add("security", L("계정·권한·프로파일", "Accounts/Privileges/Profiles"),
-            L("DBA_USERS 조회", "Query DBA_USERS"),
-            L("승인 목록과 일치, 사용 안 하는 계정 만료 임박 시 주의", "Matches the approved list; unused accounts nearing expiry are flagged"),
-            STATUS_FAILED, "-", f"{locked_err}; {expiring_err}")
-    else:
-        locked_cnt = len(locked_rows or [])
-        expiring_cnt = len(expiring_rows or [])
-        add("security", L("계정·권한·프로파일", "Accounts/Privileges/Profiles"),
-            L("DBA_USERS 조회", "Query DBA_USERS"),
-            L("승인 목록과 일치, 사용 안 하는 계정 만료 임박 시 주의", "Matches the approved list; unused accounts nearing expiry are flagged"),
-            STATUS_OK if (locked_cnt == 0 and expiring_cnt == 0) else STATUS_WARN,
-            L(f"잠긴 계정 {locked_cnt}건, 30일 내 만료 {expiring_cnt}건", f"{locked_cnt} locked, {expiring_cnt} expiring within 30 days"))
+    # locked_cnt/expiring_cnt stay None (never a fabricated 0) when their own
+    # query failed, so a genuine "0 found" (a real, successful empty result)
+    # is never confused with "couldn't check" -- see _worse_status() above.
+    locked_cnt = len(locked_rows) if (locked_rows is not None and not locked_err) else None
+    expiring_cnt = len(expiring_rows) if (expiring_rows is not None and not expiring_err) else None
+    locked_status = STATUS_FAILED if locked_err else (STATUS_OK if locked_cnt == 0 else STATUS_WARN)
+    expiring_status = STATUS_FAILED if expiring_err else (STATUS_OK if expiring_cnt == 0 else STATUS_WARN)
+    status = _worse_status(locked_status, expiring_status)
+    locked_text = (L(f"잠긴 계정 {locked_cnt}건", f"{locked_cnt} locked")
+                   if locked_cnt is not None else L("잠긴 계정 확인불가", "locked accounts unavailable"))
+    expiring_text = (L(f"30일 내 만료 {expiring_cnt}건", f"{expiring_cnt} expiring within 30 days")
+                      if expiring_cnt is not None else L("만료 예정 계정 확인불가", "expiring accounts unavailable"))
+    note = ""
+    partial_errs = [e for e in (locked_err, expiring_err) if e]
+    if partial_errs:
+        note = L(f"일부 조회 실패: {'; '.join(partial_errs)}", f"partial collection failure: {'; '.join(partial_errs)}")
+    add("security", L("계정·권한·프로파일", "Accounts/Privileges/Profiles"),
+        L("DBA_USERS 조회", "Query DBA_USERS"),
+        L("승인 목록과 일치, 사용 안 하는 계정 만료 임박 시 주의", "Matches the approved list; unused accounts nearing expiry are flagged"),
+        status, f"{locked_text}, {expiring_text}", note)
 
     # ---- 13. Audit / access history ----
     rows, err = await _q(connection, "SELECT value FROM v$parameter WHERE name = 'audit_trail'")
@@ -1085,20 +1187,24 @@ async def _collect_checks(connection, creds: dict, lang: str):
     legacy_rows, legacy_err = await _q(
         connection, "SELECT job FROM dba_jobs WHERE broken = 'Y' OR failures > 0",
     )
-    if sched_err and legacy_err:
-        add("objstats", L("스케줄러·배치", "Scheduler/Batch Jobs"),
-            L("DBA_SCHEDULER_JOB_RUN_DETAILS, DBA_JOBS 조회", "Query DBA_SCHEDULER_JOB_RUN_DETAILS, DBA_JOBS"),
-            L("필수 배치 누락·실패 없음", "No missing/failed required batch job"),
-            STATUS_FAILED, "-", f"{sched_err}; {legacy_err}", period=L("최근 7일", "last 7 days"))
-    else:
-        sched_cnt = len(sched_rows or [])
-        legacy_cnt = len(legacy_rows or [])
-        add("objstats", L("스케줄러·배치", "Scheduler/Batch Jobs"),
-            L("DBA_SCHEDULER_JOB_RUN_DETAILS, DBA_JOBS 조회", "Query DBA_SCHEDULER_JOB_RUN_DETAILS, DBA_JOBS"),
-            L("필수 배치 누락·실패 없음", "No missing/failed required batch job"),
-            STATUS_OK if (sched_cnt == 0 and legacy_cnt == 0) else STATUS_WARN,
-            L(f"실패 이력 {sched_cnt}건, 고장난 legacy job {legacy_cnt}건", f"{sched_cnt} failed run(s), {legacy_cnt} broken legacy job(s)"),
-            period=L("최근 7일 (스케줄러), 현재 스냅샷 (legacy)", "last 7 days (scheduler), current snapshot (legacy)"))
+    sched_cnt = len(sched_rows) if (sched_rows is not None and not sched_err) else None
+    legacy_cnt = len(legacy_rows) if (legacy_rows is not None and not legacy_err) else None
+    sched_status = STATUS_FAILED if sched_err else (STATUS_OK if sched_cnt == 0 else STATUS_WARN)
+    legacy_status = STATUS_FAILED if legacy_err else (STATUS_OK if legacy_cnt == 0 else STATUS_WARN)
+    status = _worse_status(sched_status, legacy_status)
+    sched_text = (L(f"실패 이력 {sched_cnt}건", f"{sched_cnt} failed run(s)")
+                  if sched_cnt is not None else L("스케줄러 실패 이력 확인불가", "scheduler failure history unavailable"))
+    legacy_text = (L(f"고장난 legacy job {legacy_cnt}건", f"{legacy_cnt} broken legacy job(s)")
+                   if legacy_cnt is not None else L("legacy job 상태 확인불가", "legacy job status unavailable"))
+    note = ""
+    partial_errs = [e for e in (sched_err, legacy_err) if e]
+    if partial_errs:
+        note = L(f"일부 조회 실패: {'; '.join(partial_errs)}", f"partial collection failure: {'; '.join(partial_errs)}")
+    add("objstats", L("스케줄러·배치", "Scheduler/Batch Jobs"),
+        L("DBA_SCHEDULER_JOB_RUN_DETAILS, DBA_JOBS 조회", "Query DBA_SCHEDULER_JOB_RUN_DETAILS, DBA_JOBS"),
+        L("필수 배치 누락·실패 없음", "No missing/failed required batch job"),
+        status, f"{sched_text}, {legacy_text}", note,
+        period=L("최근 7일 (스케줄러), 현재 스냅샷 (legacy)", "last 7 days (scheduler), current snapshot (legacy)"))
 
     # ---- 17. Archive log generation / transport ----
     if log_mode != "ARCHIVELOG":
@@ -1663,7 +1769,7 @@ body{{background:#e9eef5;color:#1c3049}}main{{max-width:1200px;padding:44px;bord
 # renders the result. Never raises for an individual check's own failure
 # (see _q()); only a failure to connect at all aborts the whole report.
 async def generate_check_report(creds: dict, click_dt: datetime, lang: str) -> str:
-    connect_string = build_connect_string(creds["ip"], creds["port"], creds["sid"])
+    connect_string = dsn_from_creds(creds)
     connection = await oracledb.connect_async(
         user=creds["account"], password=creds["password"], dsn=connect_string
     )
@@ -1678,8 +1784,11 @@ async def generate_check_report(creds: dict, click_dt: datetime, lang: str) -> s
     collect_end = datetime.now()
 
     tz_str = click_dt.astimezone().strftime("%Z (UTC%z)") if click_dt.tzinfo is None else click_dt.strftime("%Z (UTC%z)")
+    # "SID"/"Service Name" are used as-is in both languages, matching how
+    # the connect screen and Help tab already refer to them untranslated.
+    connect_type_label = "Service Name" if creds.get("connectType") == "service_name" else "SID"
     meta = {
-        "instanceTarget": f"{creds['account']}@{creds['ip']}:{creds['port']}:{creds['sid']}",
+        "instanceTarget": f"{creds['account']}@{creds['ip']}:{creds['port']}:{creds['sid']} ({connect_type_label})",
         "refTimeStr": fmt_date_time(click_dt),
         "collectStartStr": fmt_date_time(collect_start),
         "collectEndStr": fmt_date_time(collect_end),

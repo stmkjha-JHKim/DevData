@@ -241,6 +241,16 @@
 
   .fav-dropdown-item-delete:hover { background: #7c2d42; color: #fff; }
 
+  .fav-dropdown-item-type {
+    flex-shrink: 0;
+    font-size: 10px;
+    color: var(--text-sub);
+    border: 1px solid var(--panel-border, currentColor);
+    border-radius: 999px;
+    padding: 1px 6px;
+    margin-left: 6px;
+  }
+
   .fav-dropdown-empty {
     padding: 10px;
     font-size: 12.5px;
@@ -314,10 +324,31 @@
 
   input.invalid { box-shadow: 0 0 0 2px var(--error-border); }
 
+  select {
+    background: var(--input-bg);
+    color: var(--input-text);
+    border: 1px solid transparent;
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: 14px;
+    outline: none;
+    font-family: inherit;
+    cursor: pointer;
+  }
+
+  select:focus { box-shadow: 0 0 0 3px rgba(79,124,255,0.35); }
+
   .field-error {
     font-size: 11.5px;
     color: var(--error-text);
     min-height: 14px;
+  }
+
+  .field-hint {
+    font-size: 11px;
+    color: var(--text-sub);
+    line-height: 1.5;
+    margin-top: -2px;
   }
 
   button.submit {
@@ -463,9 +494,18 @@
       </div>
 
       <div class="field">
-        <label for="sid">SID / Instance</label>
+        <label for="connectType">접속 방식</label>
+        <select id="connectType">
+          <option value="sid">SID</option>
+          <option value="service_name">Service Name</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="sid" id="sidLabel">SID / Instance</label>
         <input id="sid" name="sid" type="text" placeholder="ORCL" autocomplete="off">
         <div class="field-error" id="err-sid"></div>
+        <div class="field-hint" id="sidHint">Oracle 인스턴스의 SID를 입력하세요. (예: ORCL)</div>
       </div>
 
       <div class="field">
@@ -497,6 +537,51 @@
   const resultBox = document.getElementById('result');
   const submitBtn = document.getElementById('submitBtn');
   const submitBtnLabel = document.getElementById('submitBtnLabel');
+  const connectTypeSelect = document.getElementById('connectType');
+  const sidLabel = document.getElementById('sidLabel');
+  const sidHint = document.getElementById('sidHint');
+
+  // Everything that differs between "SID" and "Service Name" mode on this
+  // screen (label text, placeholder, hint copy, and the allowed-character
+  // set used both to strip invalid input as it's typed and to validate the
+  // field on submit) lives here in one place, so switching the #connectType
+  // select is a single lookup rather than a scatter of if/else checks.
+  // Mirrors oracle_dsn.py's SID_RE/SERVICE_NAME_RE on the server -- a
+  // Service Name may contain dots (e.g. orclpdb1.example.com), a SID may not.
+  const CONNECT_TYPE_META = {
+    sid: {
+      label: 'SID / Instance',
+      placeholder: 'ORCL',
+      hint: 'Oracle 인스턴스의 SID를 입력하세요. (예: ORCL)',
+      charClass: /[^a-zA-Z0-9_$#]/g,
+      validCharsRe: /^[a-zA-Z0-9_$#]+$/,
+      emptyMsg: 'SID를 입력하세요.',
+      invalidMsg: 'SID에 허용되지 않는 문자가 포함되어 있습니다.'
+    },
+    service_name: {
+      label: 'Service Name',
+      placeholder: 'orclpdb1.example.com',
+      hint: 'Oracle 서비스명을 입력하세요. 점(.)을 포함한 이름도 사용할 수 있습니다. (예: orclpdb1.example.com)',
+      charClass: /[^a-zA-Z0-9_$#.\-]/g,
+      validCharsRe: /^[a-zA-Z0-9_$#.\-]+$/,
+      emptyMsg: 'Service Name을 입력하세요.',
+      invalidMsg: 'Service Name에 허용되지 않는 문자가 포함되어 있습니다.'
+    }
+  };
+
+  function currentConnectTypeMeta() {
+    return CONNECT_TYPE_META[connectTypeSelect.value] || CONNECT_TYPE_META.sid;
+  }
+
+  // Syncs the SID/Instance field's label, placeholder, and hint text to
+  // whichever connect type is currently selected. Called on every select
+  // change and once on page load so the UI matches the default ("sid").
+  function applyConnectTypeUi() {
+    const meta = currentConnectTypeMeta();
+    sidLabel.textContent = meta.label;
+    fields.sid.el.placeholder = meta.placeholder;
+    sidHint.textContent = meta.hint;
+  }
 
   const fields = {
     ip: {
@@ -530,8 +615,9 @@
       el: document.getElementById('sid'),
       err: document.getElementById('err-sid'),
       validate(v) {
-        if (!v.trim()) return 'SID를 입력하세요.';
-        if (!/^[a-zA-Z0-9_$#]+$/.test(v)) return 'SID에 허용되지 않는 문자가 포함되어 있습니다.';
+        const meta = currentConnectTypeMeta();
+        if (!v.trim()) return meta.emptyMsg;
+        if (!meta.validCharsRe.test(v)) return meta.invalidMsg;
         return '';
       }
     },
@@ -574,7 +660,7 @@
   // rather than briefly flashing a "invalid character" error that a
   // same-tick cleanup wouldn't otherwise clear until the next keystroke.
   fields.sid.el.addEventListener('input', () => {
-    const cleaned = fields.sid.el.value.replace(/[^a-zA-Z0-9_$#]/g, '');
+    const cleaned = fields.sid.el.value.replace(currentConnectTypeMeta().charClass, '');
     if (cleaned !== fields.sid.el.value) {
       fields.sid.el.value = cleaned;
     }
@@ -583,6 +669,18 @@
   Object.keys(fields).forEach(key => {
     fields[key].el.addEventListener('input', () => validateField(key));
   });
+
+  // Switching SID <-> Service Name updates the label/placeholder/hint and
+  // clears whatever was typed in the SID/Instance field: a value valid for
+  // one mode (e.g. a dotted service name) is very likely invalid for the
+  // other (a bare SID), so keeping it around would just show a stale error.
+  connectTypeSelect.addEventListener('change', () => {
+    applyConnectTypeUi();
+    fields.sid.el.value = '';
+    fields.sid.err.textContent = '';
+    fields.sid.el.classList.remove('invalid');
+  });
+  applyConnectTypeUi();
 
   function escapeHtml(value) {
     if (value === null || value === undefined) return '';
@@ -684,6 +782,7 @@
       ip: fields.ip.el.value.trim(),
       port: fields.port.el.value.trim(),
       sid: fields.sid.el.value.trim(),
+      connectType: connectTypeSelect.value,
       account: fields.account.el.value.trim(),
       password: fields.password.el.value
     };
@@ -785,6 +884,7 @@
     const favoriteRows = favoritesCache.map(f => `
       <div class="fav-dropdown-item" data-id="${escapeHtml(f.id)}">
         <span class="fav-dropdown-item-name">${escapeHtml(f.name)}</span>
+        ${f.connectType === 'service_name' ? '<span class="fav-dropdown-item-type">Service Name</span>' : ''}
         <button type="button" class="fav-dropdown-item-delete" data-delete-id="${escapeHtml(f.id)}" title="삭제">✕</button>
       </div>`).join('');
     favoriteDropdownPanel.innerHTML = manualRow + favoriteRows;
@@ -800,6 +900,8 @@
       fields[key].el.classList.remove('invalid');
     });
     fields.password.el.placeholder = PASSWORD_PLACEHOLDER_DEFAULT;
+    connectTypeSelect.value = 'sid';
+    applyConnectTypeUi();
   }
 
   // GET /api/favorites never includes a password (see backend/
@@ -811,6 +913,14 @@
   function fillFieldsFromFavorite(favorite) {
     fields.ip.el.value = favorite.ip;
     fields.port.el.value = favorite.port;
+    // Old favorites saved before connectType existed have no such field --
+    // favorites.py's public_view() already returns None for that case, and
+    // the same "missing means SID" rule applies here as everywhere else in
+    // this app (see oracle_dsn.normalize_connect_type()). Set and applied
+    // before filling the SID/Instance value itself, so its placeholder/hint
+    // already match the favorite's own connect type when the value lands.
+    connectTypeSelect.value = favorite.connectType || 'sid';
+    applyConnectTypeUi();
     fields.sid.el.value = favorite.sid;
     // A favorite saved while the Account field was locked to SYSTEM has no
     // account of its own -- default it to 'system' rather than leaving the
@@ -934,6 +1044,7 @@
       ip: fields.ip.el.value.trim(),
       port: fields.port.el.value.trim(),
       sid: fields.sid.el.value.trim(),
+      connectType: connectTypeSelect.value,
       account: fields.account.el.value.trim(),
       // Omitted (not sent as "") when blank, so JSON.stringify drops the
       // key entirely -- matching backend/favorites.py's save_favorite(),

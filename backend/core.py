@@ -36,6 +36,7 @@ if sys.stderr is None:
     sys.stderr = open(os.devnull, "w")
 
 import browser
+from oracle_dsn import dsn_from_creds
 from paths import app_dir, resource_dir
 
 import oracledb
@@ -138,21 +139,11 @@ oracledb.defaults.fetch_lobs = False
 IDENT_RE = re.compile(r"^[A-Za-z0-9_$#]+$")
 
 
-def build_connect_string(ip: str, port, sid: str) -> str:
-    """Full TNS connect descriptor based on SID. For a DB that uses a
-    Service Name instead, change this to the "{ip}:{port}/{service_name}"
-    form."""
-    return (
-        f"(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST={ip})(PORT={port}))"
-        f"(CONNECT_DATA=(SID={sid})))"
-    )
-
-
 async def get_oracle_connection(creds: dict) -> oracledb.AsyncConnection:
     return await oracledb.connect_async(
         user=creds["account"],
         password=creds["password"],
-        dsn=build_connect_string(creds["ip"], creds["port"], creds["sid"]),
+        dsn=dsn_from_creds(creds),
         program=ORACLE_CLIENT_PROGRAM,
     )
 
@@ -289,8 +280,10 @@ def cache_key(endpoint: str, creds: dict, extra: tuple = ()) -> tuple:
     """Identifies "the same request against the same DB" -- keyed by
     target + account (not just target) so a lower-privileged account
     never sees another account's cached "permission denied" or vice
-    versa."""
-    return (endpoint, creds["ip"], creds["port"], creds["sid"], creds["account"], extra)
+    versa. connectType is part of the target too: a SID and a Service
+    Name that happen to spell the same identifier are not the same
+    database, and must never share a cache entry."""
+    return (endpoint, creds["ip"], creds["port"], creds["sid"], creds.get("connectType", "sid"), creds["account"], extra)
 
 
 def get_cached_result(key: tuple):

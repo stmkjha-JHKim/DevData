@@ -836,25 +836,76 @@
   // actually polls. ---
   //
   // Leader election uses the Web Locks API: only one tab across the whole
-  // browser can hold a given named lock at a time, and the lock is
-  // released automatically the moment that tab closes or navigates away,
-  // letting the next waiting tab pick it up -- exactly the "singleton
-  // background work" behavior we want, with no manual heartbeat/cleanup
-  // needed. Supported in every browser this app targets (Chrome, Edge,
+  // browser can hold a given named lock at a time. A lock held for this
+  // tab's entire lifetime (the original design) has a bug, though: Web
+  // Locks has no concept of page visibility, so a *hidden* tab that
+  // grabbed the lock first just keeps holding it forever -- it never
+  // refreshes itself (shouldAutoRefresh also requires !document.hidden),
+  // and no other, actually-visible tab/window can become leader either,
+  // so NOTHING auto-refreshes anywhere until that hidden tab is closed.
+  // Fix: this tab actively RELEASES the lock (via AbortController) the
+  // moment it's hidden, and re-acquires it the moment it becomes visible
+  // again, so leadership always tracks "am I visible", not "did I ask
+  // first". Supported in every browser this app targets (Chrome, Edge,
   // Firefox 96+); on an older browser without navigator.locks, every tab
-  // just falls back to always being "the leader" (today's behavior).
-  // Note: this deliberately does NOT trigger an extra refresh the moment
-  // the lock is acquired -- the page's own bootstrap sequence below already
-  // does an unconditional first load regardless of leader status, so an
-  // extra call here would just double-fetch on every normal page load.
+  // just falls back to always being "the leader" (today's behavior),
+  // relying solely on the document.hidden check in shouldAutoRefresh().
   let isLeader = false;
-  if (navigator.locks) {
-    navigator.locks.request('orapulse-auto-refresh-leader', () => {
+  let leaderLockController = null; // non-null while a lock request is in flight or held
+  const leaderLockStartedAt = Date.now();
+
+  function handleBecameLeader() {
+    if (document.hidden) return; // became leader right as this tab was hidden again -- nothing to catch up on screen
+    // Catch up whichever tab is actually being looked at right now, since
+    // its data may have gone stale while this tab/window wasn't leader
+    // (hidden, or another tab/window was holding the lock instead).
+    if (tabIsActive('main')) loadStatus();
+    else if (tabIsActive('ops')) loadOpsUsage();
+    else if (tabIsActive('tuning')) loadTuningCheck();
+  }
+
+  // Requests the lock if this tab doesn't already hold it (or isn't
+  // already waiting for it) -- the leaderLockController guard means a
+  // burst of rapid visibility toggles never stacks up duplicate requests,
+  // it just leaves the one already in flight/held alone.
+  function acquireLeaderLock() {
+    if (!navigator.locks) {
       isLeader = true;
-      return new Promise(() => {}); // hold the lock for this tab's lifetime
-    });
-  } else {
-    isLeader = true;
+      // Skip the catch-up refresh only when this happens within the same
+      // initial page load -- the page's own bootstrap sequence below
+      // already does an unconditional first load regardless of leader
+      // status, so firing here too would just double-fetch on every
+      // normal page load. Any later call (this tab was hidden and is now
+      // visible again) is always well past that window.
+      if (Date.now() - leaderLockStartedAt > 1000) handleBecameLeader();
+      return;
+    }
+    if (leaderLockController) return; // a request is already in flight or held
+    const controller = new AbortController();
+    leaderLockController = controller;
+    navigator.locks.request(
+      'orapulse-auto-refresh-leader',
+      { signal: controller.signal },
+      () => new Promise((resolve) => {
+        isLeader = true;
+        if (Date.now() - leaderLockStartedAt > 1000) handleBecameLeader();
+        // Web Locks does not free an already-granted lock just because its
+        // AbortSignal aborts -- releaseLeaderLock() below triggers this
+        // listener, and resolving the promise is what actually lets go of
+        // the lock and hands it to the next waiting tab.
+        controller.signal.addEventListener('abort', () => resolve());
+      })
+    ).catch(() => {}); // AbortError from a cancelled queued/held request -- expected, not an error
+  }
+
+  // Cancels a queued request, or releases an already-held lock -- either
+  // way, safe to call even if nothing is currently held/pending.
+  function releaseLeaderLock() {
+    isLeader = false;
+    if (leaderLockController) {
+      leaderLockController.abort();
+      leaderLockController = null;
+    }
   }
 
   function tabIsActive(tabKey) {
@@ -865,14 +916,13 @@
     return isLeader && !document.hidden && tabIsActive(tabKey);
   }
 
-  document.addEventListener('visibilitychange', () => {
-    if (document.hidden || !isLeader) return;
-    // Catch up whichever tab is actually being looked at right now, since
-    // its data may have gone stale while this tab/window was hidden.
-    if (tabIsActive('main')) loadStatus();
-    else if (tabIsActive('ops')) loadOpsUsage();
-    else if (tabIsActive('tuning')) loadTuningCheck();
-  });
+  function updateLeaderLockForVisibility() {
+    if (document.hidden) releaseLeaderLock();
+    else acquireLeaderLock();
+  }
+
+  updateLeaderLockForVisibility();
+  document.addEventListener('visibilitychange', updateLeaderLockForVisibility);
 
   // Small "v1.0001" next to the title, fetched from whichever backend is
   // actually running (main.js or main.py both serve the same VERSION file

@@ -28,6 +28,7 @@ from typing import Optional
 
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
+from oracle_dsn import normalize_connect_type, validate_identifier
 from paths import DATA_DIR
 
 FAVORITES_FILE = DATA_DIR / "favorites.enc"
@@ -102,7 +103,15 @@ def _write_all(favorites_list: list) -> None:
 # boundary (the list endpoint, and the save endpoint's own response) so
 # there's exactly one place that decides what "safe to show" means,
 # rather than every call site having to remember to drop the field itself.
-PUBLIC_FIELDS = ("id", "name", "ip", "port", "sid", "account")
+#
+# connectType ("sid" or "service_name") was added after this feature
+# already had users -- a stored favorite from before it existed simply
+# doesn't have the key, and public_view()'s dict.get() below already
+# returns None for that case; every reader of a favorite record elsewhere
+# in this app treats a missing/None connectType as "sid" (see
+# oracle_dsn.normalize_connect_type()), exactly matching that favorite's
+# only previous, actual behavior.
+PUBLIC_FIELDS = ("id", "name", "ip", "port", "sid", "connectType", "account")
 
 
 def public_view(record: dict) -> dict:
@@ -156,6 +165,17 @@ def save_favorite(favorite: dict) -> dict:
     existing = next((f for f in favorites_list if f["id"] == fav_id), None) if fav_id else None
     resolved_id = existing["id"] if existing else f"fav_{int(time.time() * 1000)}_{secrets.token_hex(4)}"
 
+    # Missing (an old client, or a favorite predating this field) defaults
+    # to "sid"; present-but-not-one-of-the-two-valid-values is a genuine
+    # input error, same status (400, via the ValueError->400 mapping in
+    # routes_connect.py) as the password-required case below.
+    connect_type = normalize_connect_type(favorite.get("connectType"))
+    if connect_type is None:
+        raise ValueError("Invalid connect type.")
+    id_err = validate_identifier(favorite.get("sid"), connect_type)
+    if id_err:
+        raise ValueError(id_err)
+
     password = favorite.get("password") or None
     if password is None:
         if existing is None:
@@ -168,6 +188,7 @@ def save_favorite(favorite: dict) -> dict:
         "ip": favorite["ip"],
         "port": favorite["port"],
         "sid": favorite["sid"],
+        "connectType": connect_type,
         "account": favorite["account"],
         "password": password,
     }

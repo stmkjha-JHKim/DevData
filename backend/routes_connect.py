@@ -18,6 +18,7 @@ from fastapi.responses import JSONResponse
 
 import favorites as favorites_store
 import report
+from oracle_dsn import normalize_connect_type, validate_identifier
 
 from . import core
 from .core import (
@@ -140,9 +141,9 @@ async def _connect_and_store_session(creds: dict, session: Session) -> dict:
         #
         # `err` is python-oracledb's own exception -- an auth/network
         # failure message (e.g. "ORA-01017: invalid username/password"),
-        # never the credentials themselves. build_connect_string() also
-        # never embeds the password into the DSN it builds, so there's no
-        # path from a raised connection error back to the plaintext
+        # never the credentials themselves. oracle_dsn.build_connect_string()
+        # also never embeds the password into the DSN it builds, so there's
+        # no path from a raised connection error back to the plaintext
         # password here.
         return {"success": False, "message": f"Connection failed: {err}"}
     finally:
@@ -161,17 +162,28 @@ async def connect(request: Request, session: Session = Depends(get_session)):
     sid = body.get("sid")
     account = body.get("account")
     password = body.get("password")
+    # Missing entirely (an older client that doesn't send this yet)
+    # defaults to "sid" -- normalize_connect_type() only returns None for
+    # a value that was actually given and isn't "sid"/"service_name".
+    connect_type = normalize_connect_type(body.get("connectType"))
 
     if not (ip and port and sid and account and password):
         return JSONResponse(
             {
                 "success": False,
-                "message": "Please fill in all fields (IP, Port, SID, Account, Password).",
+                "message": "Please fill in all fields (IP, Port, SID/Service Name, Account, Password).",
             },
             status_code=400,
         )
+    if connect_type is None:
+        return JSONResponse(
+            {"success": False, "message": "Invalid connect type."}, status_code=400
+        )
+    id_err = validate_identifier(sid, connect_type)
+    if id_err:
+        return JSONResponse({"success": False, "message": id_err}, status_code=400)
 
-    creds = {"ip": ip, "port": port, "sid": sid, "account": account, "password": password}
+    creds = {"ip": ip, "port": port, "sid": sid, "connectType": connect_type, "account": account, "password": password}
     return await _connect_and_store_session(creds, session)
 
 
@@ -217,6 +229,10 @@ async def connect_favorite(request: Request, session: Session = Depends(get_sess
         "ip": favorite["ip"],
         "port": favorite["port"],
         "sid": favorite["sid"],
+        # .get() with a default, not favorite["connectType"] -- a favorite
+        # saved before this field existed simply doesn't have the key, and
+        # its only actual previous behavior was SID-based.
+        "connectType": favorite.get("connectType") or "sid",
         "account": favorite["account"],
         "password": favorite["password"],
     }
@@ -257,7 +273,7 @@ async def save_favorite_endpoint(request: Request):
         return JSONResponse(
             {
                 "success": False,
-                "message": "Please fill in all fields (Name, IP, Port, SID, Account).",
+                "message": "Please fill in all fields (Name, IP, Port, SID/Service Name, Account).",
             },
             status_code=400,
         )

@@ -1458,6 +1458,7 @@
   ('opcode',
    'C:\\Users\\jh.kim\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\opcode.py',
    'PYMODULE'),
+  ('oracle_dsn', 'D:\\STMKJHA\\69.DevData\\oracle_dsn.py', 'PYMODULE'),
   ('oracledb',
    'D:\\STMKJHA\\69.DevData\\venv\\Lib\\site-packages\\oracledb\\__init__.py',
    'PYMODULE'),

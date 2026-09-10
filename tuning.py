@@ -121,6 +121,10 @@ def _same_target(a: dict, b: dict) -> bool:
         a.get("ip") == b.get("ip")
         and str(a.get("port")) == str(b.get("port"))
         and a.get("sid") == b.get("sid")
+        # A stored target predating this field defaults to "sid", matching
+        # its only previous behavior -- a SID and a Service Name that
+        # happen to spell the same identifier are still different targets.
+        and a.get("connectType", "sid") == b.get("connectType", "sid")
     )
 
 
@@ -440,7 +444,7 @@ async def run_tuning_check(connection, creds: dict) -> dict:
     /api/tuning-check endpoint hands back as JSON. `connection` is an
     already-open connection for `creds` (the caller owns opening/closing
     it, same convention as every other endpoint in this app)."""
-    target = {"ip": creds["ip"], "port": creds["port"], "sid": creds["sid"]}
+    target = {"ip": creds["ip"], "port": creds["port"], "sid": creds["sid"], "connectType": creds.get("connectType", "sid")}
     current_sections = await _gather_current(connection)
     now_ms = time.time() * 1000
 
