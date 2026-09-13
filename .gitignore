@@ -1,0 +1,15 @@
+# Per-machine virtual environment -- recreated by build-folder.ps1 or
+# `python -m venv venv` + `pip install -r requirements.txt`.
+venv/
+
+# Runtime data created next to main.py when running from source: instance
+# lock file, dedicated browser profile. Safe to delete to reset the app.
+data/
+logs/
+
+# PyInstaller build output.
+build/
+dist/
+
+__pycache__/
+*.pyc
