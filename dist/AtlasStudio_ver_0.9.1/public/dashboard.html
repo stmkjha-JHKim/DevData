@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AtlasStudio - 작업 홈</title>
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!--
+  UI-only mockup -- see README.md. This is the screen index.html's connect
+  form redirects to after "연결" -- see index.html's own comment for why
+  that's a plain client-side redirect, never a real Oracle connection.
+  Every list/card below is built at runtime by app.js from the example
+  content in data.js; nothing here talks to a server, a database, or the
+  network (loadAppVersion()'s same-origin /api/version call is the one
+  exception -- see app.js's own top comment). The only interactive
+  elements that do anything besides show a "준비 중" toast are the
+  already-active "작업 홈" sidebar entry (the current screen) and the
+  "연결 해제" button, which just navigates back to index.html.
+-->
+<div class="app-shell">
+
+  <div class="id-strip">
+    <span class="id-strip-path" id="idStripPath"></span>
+    <span class="id-strip-note" id="idStripNote"></span>
+  </div>
+
+  <div class="body-row">
+    <aside class="sidebar">
+      <div class="brand" id="sidebarBrand"></div>
+      <nav class="sidebar-scroll" id="sidebarScroll"></nav>
+      <div class="sidebar-user" id="sidebarUser"></div>
+    </aside>
+
+    <div class="main-column">
+      <div class="content-topbar">
+        <div class="breadcrumb" id="breadcrumb"></div>
+        <div class="topbar-status" id="topbarStatus"></div>
+      </div>
+
+      <div class="main-scroll">
+        <div class="content-inner">
+
+          <div class="page-header">
+            <div>
+              <p class="page-eyebrow">YOUR ORACLE WORKSPACE</p>
+              <h2>오늘의 작업을 한곳에서</h2>
+              <p class="page-desc">운영 현황부터 변경 검증, 고객사 보고서까지.</p>
+            </div>
+            <div id="pageHeaderAction"></div>
+          </div>
+
+          <div class="db-cards" id="dbCards"></div>
+
+          <div class="section-head">
+            <h3>자주 사용하는 작업</h3>
+            <span class="section-note" id="quickActionsNote"></span>
+          </div>
+          <div class="quick-actions" id="quickActions"></div>
+
+          <div class="dashboard-columns">
+            <div class="panel">
+              <div class="section-head">
+                <h3>확인이 필요한 작업</h3>
+                <span class="section-note" id="pendingTasksNote"></span>
+              </div>
+              <div id="pendingTasksPanel"></div>
+            </div>
+
+            <div class="panel">
+              <div class="section-head">
+                <h3>최근 작업</h3>
+                <span class="section-note" id="recentActivityNote"></span>
+              </div>
+              <div id="recentActivityPanel"></div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer-strip">
+    <span id="footerLeft"></span>
+    <span id="footerRight"></span>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="icons.js"></script>
+<script src="data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

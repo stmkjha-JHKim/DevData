@@ -9,6 +9,16 @@
 ; /DSourceDir=...\dist\OraPulse_ver_1.0007) rather than hardcoded here, so
 ; this file never needs editing just because VERSION changed.
 ;
+; InstallDirName/OutputDir/OutputBaseFilename are separately overridable
+; (also via /D) so a second build script can reuse this exact same script
+; to produce a differently-named/located installer (see
+; build-installer-odm.ps1, which builds setup\<MSI_VERSION>\
+; OraPulse_ODM_Setup_ver_<MSI_VERSION>.exe installing to
+; {commonpf32}\OraPulse_ODM) without touching this file or affecting
+; build-installer.ps1's own existing output at all -- every default below
+; is exactly what build-installer.ps1 already passed (or relied on)
+; before these three defines existed.
+;
 ; Machine-wide install under Program Files (x86) (DefaultDirName below),
 ; which requires admin/UAC (PrivilegesRequired=admin). Note: data\ --
 ; created next to OraPulse.exe at first run, see paths.py's app_dir() --
@@ -29,18 +39,27 @@
 #ifndef SourceDir
   #define SourceDir "dist\OraPulse"
 #endif
+#ifndef InstallDirName
+  #define InstallDirName "OraPulse_Windows_x86"
+#endif
+#ifndef OutputDir
+  #define OutputDir "dist"
+#endif
+#ifndef OutputBaseFilename
+  #define OutputBaseFilename "OraPulse-Setup_ver_" + MyAppVersion
+#endif
 
 [Setup]
 AppId={{064E520D-2FDC-42AE-A8EE-21C9F954723E}
 AppName=OraPulse
 AppVersion={#MyAppVersion}
 AppPublisher=OraPulse
-DefaultDirName={commonpf32}\OraPulse_Windows_x86
+DefaultDirName={commonpf32}\{#InstallDirName}
 DefaultGroupName=OraPulse
 DisableProgramGroupPage=yes
 PrivilegesRequired=admin
-OutputDir=dist
-OutputBaseFilename=OraPulse-Setup_ver_{#MyAppVersion}
+OutputDir={#OutputDir}
+OutputBaseFilename={#OutputBaseFilename}
 SetupIconFile=favicon.ico
 UninstallDisplayIcon={app}\OraPulse.exe
 Compression=lzma2
