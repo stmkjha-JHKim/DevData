@@ -38,7 +38,11 @@ async def table_owners(session: Session = Depends(get_session)):
 
 
 # For the Table Statistics Collection card: per-table statistics for the
-# selected user (OWNER)
+# selected user (OWNER). Partitioned tables are excluded entirely (both
+# their own object_type='TABLE' aggregate row and any per-partition rows)
+# -- this card is meant for whole-table stats collection, and a schema
+# with large partitioned tables would otherwise flood the list with one
+# row per partition.
 @router.get("/api/table-stats")
 async def table_stats(request: Request, session: Session = Depends(get_session)):
     creds = session.get("db_creds")
@@ -71,7 +75,8 @@ async def table_stats(request: Request, session: Session = Depends(get_session))
                      ON p.table_owner = s.owner AND p.table_name = s.table_name
                     AND p.partition_name = s.partition_name
                   WHERE s.owner = :owner
-                    AND s.object_type IN ('TABLE', 'PARTITION')
+                    AND s.object_type = 'TABLE'
+                    AND t.partitioned = 'NO'
                   ORDER BY s.last_analyzed ASC NULLS FIRST, s.table_name ASC, s.partition_name ASC NULLS FIRST
                ) WHERE ROWNUM <= 200""",
             {"owner": owner},
@@ -82,9 +87,12 @@ async def table_stats(request: Request, session: Session = Depends(get_session))
         cursor2 = connection.cursor()
         await cursor2.execute(
             """SELECT COUNT(*) AS cnt
-                 FROM dba_tab_statistics
-                WHERE owner = :owner
-                  AND object_type IN ('TABLE', 'PARTITION')""",
+                 FROM dba_tab_statistics s
+                 JOIN dba_tables t
+                   ON t.owner = s.owner AND t.table_name = s.table_name
+                WHERE s.owner = :owner
+                  AND s.object_type = 'TABLE'
+                  AND t.partitioned = 'NO'""",
             {"owner": owner},
         )
         dict_rowfactory(cursor2)

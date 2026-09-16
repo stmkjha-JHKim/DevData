@@ -224,6 +224,13 @@ async def ops_usage(session: Session = Depends(get_session)):
 
     # Tablespace I/O Stats, at the datafile level, top 10 by physical reads
     # -- read-heavy datafiles are usually the ones worth investigating first.
+    # Tablespaces that hold partitioned-table data are excluded (per-request
+    # -- this list is meant for regular, non-partitioned-table tablespaces).
+    # NOT EXISTS rather than NOT IN: dba_tab_partitions.tablespace_name can
+    # be NULL for some partition types (e.g. those stored across multiple
+    # tablespaces via subpartitions), and NOT IN against a subquery that
+    # returns even one NULL silently matches nothing at all -- NOT EXISTS
+    # doesn't have that failure mode.
     try:
         cursor = connection.cursor()
         await cursor.execute(
@@ -238,6 +245,10 @@ async def ops_usage(session: Session = Depends(get_session)):
                           FROM v$filestat fs
                           JOIN v$datafile df ON fs.file# = df.file#
                           JOIN v$tablespace ts ON df.ts# = ts.ts#
+                         WHERE NOT EXISTS (
+                                 SELECT 1 FROM dba_tab_partitions p
+                                  WHERE p.tablespace_name = ts.name
+                               )
                          ORDER BY fs.phyrds DESC
                       )
                 WHERE ROWNUM <= 10"""
@@ -336,7 +347,9 @@ async def ops_usage(session: Session = Depends(get_session)):
     # with autoextend off simply fails with "ORA-01653: unable to extend"
     # once its tablespace fills up, so this is an early-warning list, with
     # the files closest to their max size (or without autoextend at all)
-    # surfaced first, capped at 20 rows.
+    # surfaced first, capped at 20 rows. Tablespaces holding partitioned-
+    # table data are excluded (see the same exclusion + NOT EXISTS reasoning
+    # on the Tablespace I/O Stats query above).
     try:
         cursor = connection.cursor()
         await cursor.execute(
@@ -349,7 +362,11 @@ async def ops_usage(session: Session = Depends(get_session)):
                              THEN ROUND(maxbytes / 1024 / 1024 / 1024, 2) END AS max_gb,
                         CASE WHEN autoextensible = 'YES' AND maxbytes > 0
                              THEN ROUND(bytes / maxbytes * 100, 2) END AS used_pct_of_max
-                   FROM dba_data_files
+                   FROM dba_data_files df
+                  WHERE NOT EXISTS (
+                          SELECT 1 FROM dba_tab_partitions p
+                           WHERE p.tablespace_name = df.tablespace_name
+                        )
                   ORDER BY used_pct_of_max DESC NULLS LAST
                ) WHERE ROWNUM <= 20
               ORDER BY used_pct_of_max DESC NULLS LAST"""
