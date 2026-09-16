@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OraPulse Backup - DB 등록</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<style>
+:root {
+  --bg-1: #0b1220; --bg-2: #111a2e; --panel-border: #26314d;
+  --text-main: #e6ebf5; --text-sub: #8b96b3;
+  --accent: #4f7cff; --accent-hover: #3d68f0;
+  --success-bg: #0f2e22; --success-border: #1f8f5f; --success-text: #4fe3a3;
+  --error-bg: #331419; --error-border: #8f2b3a; --error-text: #ff6b7f;
+  --warn-text: #f2c14e;
+  --input-bg: #ffffff; --input-text: #1a2238; --input-placeholder: #9aa3b8;
+}
+* { box-sizing: border-box; }
+body.connect-body {
+  margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+  background: radial-gradient(circle at 20% 20%, rgba(79,124,255,0.10), transparent 40%),
+              radial-gradient(circle at 80% 80%, rgba(79,124,255,0.08), transparent 40%), var(--bg-1);
+  font-family: "Segoe UI","Malgun Gothic",-apple-system,BlinkMacSystemFont,sans-serif;
+  color: var(--text-main); padding: 24px;
+}
+.shell { width: 100%; max-width: 1000px; display: flex; border-radius: 20px; overflow: hidden; background: var(--bg-2); border: 1px solid var(--panel-border); box-shadow: 0 30px 70px rgba(0,0,0,0.5); }
+.brand-panel { flex: 0 0 330px; padding: 48px 36px; display: flex; flex-direction: column; background: linear-gradient(160deg, #4f6ef7 0%, #17b3c4 100%); color: #fff; }
+.brand-icon-wrap { width: 64px; height: 64px; border-radius: 16px; background: rgba(255,255,255,0.18); display: flex; align-items: center; justify-content: center; margin-bottom: 18px; }
+.brand-panel h1 { margin: 0; font-size: 26px; font-weight: 700; letter-spacing: -0.2px; }
+.app-version { font-size: 12px; font-weight: 400; opacity: 0.7; vertical-align: middle; }
+.brand-tagline { margin: 8px 0 0; font-size: 14px; line-height: 1.5; opacity: 0.92; }
+.feature-list { list-style: none; margin: 34px 0 0; padding: 0; display: flex; flex-direction: column; gap: 14px; }
+.feature-list li { display: flex; align-items: center; gap: 10px; font-size: 13.5px; }
+.feature-list li::before { content: '✓'; flex-shrink: 0; width: 20px; height: 20px; border-radius: 50%; background: rgba(255,255,255,0.22); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; }
+.form-panel { flex: 1; min-width: 0; padding: 44px 44px 36px; display: flex; flex-direction: column; }
+.form-panel h2 { margin: 0; font-size: 23px; font-weight: 700; }
+.form-sub { margin: 6px 0 0; font-size: 13px; color: var(--text-sub); }
+.registered-strip { display: flex; gap: 8px; margin: 22px 0 0; flex-wrap: wrap; }
+.registered-strip:empty { margin: 0; }
+.registered-chip { display: flex; align-items: center; gap: 6px; background: rgba(255,255,255,0.05); border: 1px solid var(--panel-border); border-radius: 999px; padding: 5px 10px 5px 8px; font-size: 12px; color: var(--text-main); cursor: pointer; }
+.registered-chip:hover { border-color: var(--accent); }
+.registered-chip .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--success-text); flex-shrink: 0; }
+#dbForm { margin-top: 22px; display: flex; flex-direction: column; gap: 16px; }
+.row-split { display: flex; gap: 12px; }
+.field { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+label { font-size: 12.5px; color: var(--text-sub); font-weight: 500; }
+input, select { background: var(--input-bg); color: var(--input-text); border: 1px solid transparent; border-radius: 10px; padding: 12px 14px; font-size: 14px; outline: none; font-family: inherit; }
+input.invalid { box-shadow: 0 0 0 2px var(--error-border); }
+select { cursor: pointer; }
+.field-error { font-size: 11.5px; color: var(--error-text); min-height: 14px; }
+button.submit { margin-top: 6px; background: linear-gradient(135deg, #6a5cf0, #4f6ef7); color: #fff; border: none; border-radius: 10px; padding: 13px; font-size: 14.5px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; }
+button.submit:disabled { opacity: 0.6; cursor: not-allowed; }
+.submit-dot { width: 8px; height: 8px; border-radius: 50%; background: #fff; opacity: 0.85; flex-shrink: 0; }
+.result { margin-top: 4px; padding: 12px 14px; border-radius: 8px; font-size: 13.5px; line-height: 1.5; display: none; word-break: break-word; }
+.result.show { display: block; }
+.result.success { background: var(--success-bg); border: 1px solid var(--success-border); color: var(--success-text); }
+.result.error { background: var(--error-bg); border: 1px solid var(--error-border); color: var(--error-text); }
+.result.pending { background: rgba(255,255,255,0.06); border: 1px solid var(--panel-border); color: var(--text-sub); }
+.result strong { display: block; margin-bottom: 3px; font-size: 14px; }
+.disclaimer { margin-top: auto; padding-top: 22px; font-size: 11px; color: #5b6786; line-height: 1.5; }
+@media (max-width: 720px) {
+  .shell { flex-direction: column; max-width: 480px; }
+  .brand-panel { flex: none; padding: 32px 28px; }
+  .form-panel { padding: 32px 28px 28px; }
+}
+</style>
+</head>
+<body class="connect-body">
+<div class="shell" id="mainAppContent">
+  <div class="brand-panel">
+    <div class="brand-icon-wrap">
+      <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg">
+        <ellipse cx="12" cy="5.2" rx="7" ry="2.6"></ellipse>
+        <path d="M5 5.2v5.6c0 1.4 3.1 2.6 7 2.6s7-1.2 7-2.6V5.2"></path>
+        <path d="M5 10.8v5.6c0 1.4 3.1 2.6 7 2.6s7-1.2 7-2.6v-5.6"></path>
+        <path d="M11.3 14l1.7 1.7 1.7-1.7"></path>
+        <path d="M13 10v5.7"></path>
+      </svg>
+    </div>
+    <h1>OraPulse Backup <span class="app-version" id="appVersion"></span></h1>
+    <p class="brand-tagline">Oracle Data Pump 기반<br>중앙 백업 관리</p>
+    <ul class="feature-list">
+      <li>Data Pump로 Export / Import 백업</li>
+      <li>정책 기반 자동 스케줄링</li>
+      <li>여러 DB의 백업 현황을 한 곳에서 관리</li>
+      <li>DB 접속 정보는 이 서버에만 암호화 저장</li>
+    </ul>
+  </div>
+
+  <div class="form-panel">
+    <h2>백업 대상 DB 등록</h2>
+    <p class="form-sub">접속 정보를 입력해 새 DB를 등록하거나, 이미 등록된 DB를 선택하세요.</p>
+
+    <div id="registeredStrip" class="registered-strip"></div>
+
+    <div id="dbForm">
+      <div class="field">
+        <label for="dbName">DB 별칭 (예: MES_PROD)</label>
+        <input id="dbName" placeholder="MES_PROD" autocomplete="off">
+        <div class="field-error" id="err-dbName"></div>
+      </div>
+
+      <div class="row-split">
+        <div class="field">
+          <label for="ip">DB Host / IP</label>
+          <input id="ip" placeholder="192.168.0.10" autocomplete="off">
+          <div class="field-error" id="err-ip"></div>
+        </div>
+        <div class="field" style="flex: 0 0 110px;">
+          <label for="port">Port</label>
+          <input id="port" placeholder="1521" autocomplete="off">
+          <div class="field-error" id="err-port"></div>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="connectType">접속 방식</label>
+        <select id="connectType">
+          <option value="sid">SID</option>
+          <option value="service_name">Service Name</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="sid" id="sidLabel">SID / Instance</label>
+        <input id="sid" placeholder="ORCL" autocomplete="off">
+        <div class="field-error" id="err-sid"></div>
+      </div>
+
+      <div class="field">
+        <label for="account">Oracle 계정 (백업 전용 계정 권장)</label>
+        <input id="account" placeholder="backup_svc" autocomplete="off">
+        <div class="field-error" id="err-account"></div>
+      </div>
+
+      <div class="field">
+        <label for="password">비밀번호</label>
+        <input id="password" type="password" placeholder="••••••••" autocomplete="off">
+        <div class="field-error" id="err-password"></div>
+      </div>
+
+      <button type="button" class="submit" id="submitBtn"><span class="submit-dot"></span><span id="submitBtnLabel">DB 등록하고 백업 관리 시작</span></button>
+      <div class="result" id="result"></div>
+    </div>
+
+    <div class="disclaimer">
+      * DB 접속 정보(비밀번호 포함)는 이 서버의 로컬 데이터에 AES-256-GCM으로 암호화되어 저장되며, 등록된 각 DB의 백업 정책·이력이 대시보드에서 함께 관리됩니다.<br>
+      * Data Pump Export/Import를 실행하려면 이 계정에 EXP_FULL_DATABASE / IMP_FULL_DATABASE 권한과 Directory Object 사용 권한이 필요합니다.
+    </div>
+  </div>
+</div>
+
+<script src="/js/connect.js"></script>
+</body>
+</html>

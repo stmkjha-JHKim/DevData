@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OraPulse Backup</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="stylesheet" href="/css/dashboard.css">
+</head>
+<body>
+<div class="wrap">
+
+  <div class="topbar">
+    <div class="title">
+      <svg class="brand-icon" viewBox="0 0 24 24" fill="none" stroke="#3d63e0" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg">
+        <ellipse cx="12" cy="5.2" rx="7" ry="2.6"></ellipse>
+        <path d="M5 5.2v5.6c0 1.4 3.1 2.6 7 2.6s7-1.2 7-2.6V5.2"></path>
+        <path d="M5 10.8v5.6c0 1.4 3.1 2.6 7 2.6s7-1.2 7-2.6v-5.6"></path>
+        <path d="M11.3 14l1.7 1.7 1.7-1.7"></path>
+        <path d="M13 10v5.7"></path>
+      </svg>
+      <div>
+        <h1>OraPulse Backup <span class="app-version" id="appVersion"></span></h1>
+        <p class="target">Oracle Data Pump 기반 중앙 백업 관리</p>
+      </div>
+    </div>
+    <div class="actions">
+      <select class="top-select" id="dbSelect"><option value="">대상 DB: 전체</option></select>
+      <button type="button" id="refreshBtn">새로고침</button>
+      <button type="button" class="primary" id="newDbBtn">+ DB 등록</button>
+    </div>
+  </div>
+
+  <div class="banner error" id="banner" style="display:none; padding:12px 14px; border-radius:8px; background:var(--error-bg); border:1px solid var(--error-border); color:var(--error-text); margin-bottom:16px; font-size:13px;"></div>
+
+  <div class="tab-bar">
+    <button type="button" class="tab-btn active" data-tab="main">개요</button>
+    <button type="button" class="tab-btn" data-tab="policies">백업 정책</button>
+    <button type="button" class="tab-btn" data-tab="history">실행 이력</button>
+    <button type="button" class="tab-btn" data-tab="recovery">복구 검증</button>
+  </div>
+
+  <!-- 개요 -->
+  <div class="tab-panel" id="tabPanelMain">
+    <div class="summary-grid">
+      <div class="summary-card"><span class="label">등록된 DB</span><span class="value" id="sumDbCount">-</span><span class="sub" id="sumDbSub"></span></div>
+      <div class="summary-card"><span class="label">활성 백업 정책</span><span class="value accent" id="sumPolicyCount">-</span><span class="sub" id="sumPolicySub"></span></div>
+      <div class="summary-card"><span class="label">최근 24시간 실패</span><span class="value danger" id="sumFailCount">-</span><span class="sub" id="sumFailSub"></span></div>
+      <div class="summary-card"><span class="label">최근 실행</span><span class="value" id="sumLastRun">-</span><span class="sub" id="sumLastRunSub"></span></div>
+    </div>
+
+    <div class="grid">
+      <div class="card card-wide">
+        <h2 class="h2-with-badge"><span class="h2-left"><span class="status-dot"></span>등록된 DB 현황</span></h2>
+        <div id="dbStatusTable"><div class="empty-msg">등록된 DB가 없습니다. 상단의 "+ DB 등록" 버튼으로 추가하세요.</div></div>
+      </div>
+
+      <div class="card card-wide">
+        <h2><span class="status-dot"></span>최근 실행 이력</h2>
+        <div id="recentRunsTable"><div class="empty-msg">아직 실행 이력이 없습니다.</div></div>
+      </div>
+
+      <div class="card card-wide">
+        <h2><span class="status-dot warn"></span>경고 / 확인 필요</h2>
+        <div id="warningsList"><div class="empty-msg">확인이 필요한 항목이 없습니다.</div></div>
+      </div>
+    </div>
+    <div class="footer-note">* 상단의 대상 DB를 바꾸면 백업 정책/실행 이력 탭이 해당 DB로 필터링됩니다.</div>
+  </div>
+
+  <!-- 백업 정책 -->
+  <div class="tab-panel" id="tabPanelPolicies" hidden>
+    <div class="card">
+      <h2 class="h2-with-badge">
+        <span>백업 정책 &amp; 스케줄</span>
+        <button type="button" class="primary" id="newPolicyBtn">+ 새 정책</button>
+      </h2>
+      <div class="policy-layout">
+        <div class="policy-explorer">
+          <div class="policy-explorer-head"><span id="policyListCount">정책 목록 (0)</span></div>
+          <div class="policy-list" id="policyList"><div class="empty-msg">등록된 정책이 없습니다.</div></div>
+        </div>
+        <div class="policy-viewer" id="policyViewer">
+          <div class="policy-viewer-title"><span>왼쪽에서 정책을 선택하거나 새 정책을 추가하세요.</span></div>
+          <div class="policy-viewer-body"><div class="empty-msg">정책을 선택하면 상세 옵션이 여기에 표시됩니다.</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 실행 이력 -->
+  <div class="tab-panel" id="tabPanelHistory" hidden>
+    <div class="card">
+      <h2>실행 이력</h2>
+      <div class="sess-filter-row">
+        <select class="sess-filter-input" id="historyStatusFilter">
+          <option value="">상태: 전체</option>
+          <option value="SUCCESS">성공</option>
+          <option value="FAILED">실패</option>
+          <option value="RUNNING">진행 중</option>
+        </select>
+        <button type="button" class="sess-filter-reset" id="historyRefreshBtn">새로고침</button>
+      </div>
+      <div class="sess-table-wrap">
+        <table class="sess-table" id="historyTable">
+          <thead><tr><th>시작 시각</th><th>정책</th><th>DB</th><th>유형</th><th>트리거</th><th>상태</th><th>소요시간</th><th>덤프 파일</th><th>크기</th></tr></thead>
+          <tbody><tr><td colspan="9" class="empty-msg">아직 실행 이력이 없습니다.</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card" style="padding: 0; overflow: hidden; display: none;" id="logCard">
+      <div class="log-viewer-title"><span id="logTitle">로그</span></div>
+      <pre class="log-viewer-body" id="logBody"></pre>
+    </div>
+  </div>
+
+  <!-- 복구 검증 -->
+  <div class="tab-panel" id="tabPanelRecovery" hidden>
+    <div class="card">
+      <h2><span class="status-dot warn"></span>복구 가능성 검증</h2>
+      <div class="callout">백업 파일이 만들어졌다는 것과 실제로 <strong>복구할 수 있다</strong>는 것은 다릅니다. 이 기능은 최근 백업 덤프를 별도의 검증용 스키마로 실제 Import 해 보고 그 결과와 소요 시간(RTO)을 기록하도록 설계되어 있으나, <strong>실제 Import 실행은 아직 구현되지 않았습니다</strong> (다음 개발 단계입니다).</div>
+    </div>
+    <div class="card">
+      <h2>DB별 검증 현황</h2>
+      <div class="sess-table-wrap">
+        <table class="sess-table" id="recoveryTable">
+          <thead><tr><th>DB</th><th>최근 검증 일시</th><th>결과</th><th>측정 RTO</th><th></th></tr></thead>
+          <tbody><tr><td colspan="5" class="empty-msg">등록된 DB가 없습니다.</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script src="/js/dashboard.js"></script>
+</body>
+</html>
