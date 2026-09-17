@@ -22,14 +22,14 @@ PORT = int(os.environ.get("PORT", 8000))
 # the Data Pump job connections it opens (see backend/datapump.py's own
 # ORACLE_CLIENT_PROGRAM) in V$SESSION.PROGRAM, same convention OraPulse
 # uses to filter its own monitoring connections out of the session list.
-ORACLE_CLIENT_PROGRAM = "OraPulseBackup"
+ORACLE_CLIENT_PROGRAM = "OraVaultBackup"
 
 try:
     APP_VERSION = (APP_DIR / "VERSION").read_text(encoding="utf-8").strip()
 except OSError:
     APP_VERSION = "unknown"
 
-app = FastAPI(title="OraPulse Backup", version=APP_VERSION)
+app = FastAPI(title="OraVault Backup", version=APP_VERSION)
 
 oracledb.defaults.fetch_lobs = False
 

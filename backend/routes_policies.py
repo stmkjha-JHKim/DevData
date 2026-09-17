@@ -22,7 +22,7 @@ class PolicyPayload(BaseModel):
     scope_value: Optional[str] = None
     directory_object: str = "DATA_PUMP_DIR"
     dump_file_pattern: str = "%POLICY%_%DATE%.dmp"
-    compression: str = "MEDIUM"
+    compression: str = "METADATA_ONLY"
     parallel_degree: int = 1
     content: str = "ALL"
     schedule_kind: str = "DAILY"

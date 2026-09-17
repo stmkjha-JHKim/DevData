@@ -1,4 +1,4 @@
-# OraPulse Backup
+# OraVault Backup
 
 **Oracle Data Pump 기반 중앙 백업 관리** -- OraPulse(Oracle DB 모니터링 클라이언트)와
 같은 환경(FastAPI + 브라우저 프론트엔드, python-oracledb thin 모드, Oracle Instant
@@ -31,6 +31,12 @@ Client 불필요)을 재사용해서 만든 자매 프로젝트입니다. OraPul
 - 백업 정책 CRUD (FULL/SCHEMA/TABLE 범위, Directory Object, 압축, 병렬도,
   CONTENT, 스케줄, 보관 기간, RPO/RTO 등급)
 - "지금 실행" -- 실제로 `DBMS_DATAPUMP` Export 작업을 실행하고 결과를 기록
+- "메뉴얼 백업" 탭 -- 정책 없이 즉석에서 스코프/디렉토리를 골라 1회성 백업 실행.
+  TABLE 범위는 스키마를 고르면 그 스키마의 테이블 목록(NUM_ROWS/BLOCKS/SAMPLE_SIZE
+  포함)을 체크박스로 보여주고 여러 개 선택 가능. "지금 백업" 클릭 시 Data Pump
+  Job을 시작만 하고 바로 응답하며(비동기), 브라우저는 `GET /api/manual/runs/
+  {id}/progress`를 폴링해 `USER_DATAPUMP_JOBS` 기반 진행 상태를 확인 -- HTTP
+  요청 하나가 백업 전체 시간만큼 열려 있지 않음
 - APScheduler 기반 자동 스케줄 실행 (정책 변경은 최대 60초 내 반영)
 - 실행 이력 (상태/소요시간/덤프 크기/로그 전문)
 - 대시보드 요약 (등록 DB 현황, 정책 개수, 최근 24시간 실패, 최근 실행, 경고 목록
@@ -40,7 +46,7 @@ Client 불필요)을 재사용해서 만든 자매 프로젝트입니다. OraPul
 능함`을 증명하는 것)은 검증용 스키마로의 실제 `DBMS_DATAPUMP` Import, 그 대상
 스키마/테이블스페이스를 어떻게 마련하고 정리할지, RTO 측정 방식 등 별도 설계가
 필요해서 이번 버전에서는 이력 저장 구조만 만들고 실제 실행은 `backend/
-routes_recovery.py`에 명확히 "미구현"으로 표시해 두었습니다 (OraPulse Backup의
+routes_recovery.py`에 명확히 "미구현"으로 표시해 두었습니다 (OraVault Backup의
 초기 RMAN 기반 프로토타입에서도 복구 테스트 실행은 같은 이유로 스텁으로 남겼던
 것과 같은 판단입니다).
 
@@ -80,7 +86,7 @@ backup_manager/
 │   └── routes_recovery.py       # 복구 검증 (스텁)
 ├── requirements.txt
 ├── VERSION                     # 다음 빌드에서 만들어질 버전 (4자리, 예: 1.0.0.1) -- build.ps1이 매 빌드 후 자동 증가
-├── OraPulseBackup.spec          # PyInstaller 빌드 스펙 (.exe에 무엇을 포함할지)
+├── OraVaultBackup.spec          # PyInstaller 빌드 스펙 (.exe에 무엇을 포함할지)
 ├── build.ps1                    # Windows .exe 빌드 스크립트 (아래 "Windows .exe 빌드" 참고)
 ├── favicon.ico                  # .exe 아이콘
 └── public/                     # 브라우저 프론트엔드
@@ -103,8 +109,10 @@ python main.py
 
 ## Windows .exe 빌드
 
-Python이 설치되어 있지 않은 Windows PC에서도 실행할 수 있는 단일 실행 파일을
-만들 수 있습니다 (PyInstaller 사용). Windows PowerShell에서:
+Python이 설치되어 있지 않은 Windows PC에서도 실행할 수 있는 배포판을 만들 수
+있습니다 (PyInstaller 사용, onedir 방식 -- `.exe` 하나가 아니라 그 옆에 DLL/데이터가
+같이 있는 폴더입니다. 실행할 때마다 통째로 임시 폴더에 다시 풀어야 하는 onefile
+방식이 실행 속도가 느려서 onedir로 바꿨습니다). Windows PowerShell에서:
 
 ```powershell
 .\build.ps1
@@ -115,18 +123,18 @@ Python이 설치되어 있지 않은 Windows PC에서도 실행할 수 있는 �
 
 1. `dist` 폴더가 없으면 생성합니다.
 2. `VERSION` 파일(4자리, 이 프로젝트는 `1.0.0.1`부터 시작)을 읽어 `dist\<버전>\`
-   폴더를 새로 만들고 그 안에 `OraPulseBackup.exe`를 빌드합니다. 이전 버전 폴더는
-   건드리지 않습니다.
+   폴더를 새로 만들고 그 안에 `OraVaultBackup.exe`와 같이 실행에 필요한 DLL/데이터
+   파일들을 빌드합니다. 이전 버전 폴더는 건드리지 않습니다.
 3. 빌드가 끝나면 `VERSION`의 마지막 자리를 자동으로 1 증가시켜 저장합니다 --
    다음에 `.\build.ps1`을 실행하면 자동으로 다음 버전(`1.0.0.2`, `1.0.0.3`, ...)이
    빌드되고 그만큼 새 폴더가 생깁니다. 버전을 수동으로 관리할 필요가 없습니다.
 
-빌드된 `dist\1.0.0.1\OraPulseBackup.exe`는 그 폴더를 통째로 복사해서 배포하면
+빌드된 `dist\1.0.0.1\OraVaultBackup.exe`는 그 폴더를 통째로 복사해서 배포하면
 됩니다. 실행하면 `.exe` 옆에 `data\` 폴더(암호화된 DB 등록 정보, 정책/이력
 SQLite)가 자동으로 생기고, 재시작해도 유지됩니다 (`.exe`가 있는 위치에 쓰기
-권한이 없으면 `%LOCALAPPDATA%\OraPulseBackup\data`로 자동 대체됩니다).
-콘솔 창이 함께 뜨는데, 거기 표시되는 `http://127.0.0.1:PORT` 주소를 브라우저로
-열어서 사용하면 됩니다 (트레이 아이콘/자동 브라우저 실행은 아직 없습니다).
+권한이 없으면 `%LOCALAPPDATA%\OraVaultBackup\data`로 자동 대체됩니다).
+콘솔 창은 뜨지 않고(windowed 빌드), 대신 서버가 뜬 직후 기본 브라우저로
+`http://127.0.0.1:PORT`가 자동으로 열립니다 (트레이 아이콘은 아직 없습니다).
 
 > **참고**: 이 `.exe` 빌드는 개발 환경(Linux, Windows/PowerShell 없음)에서는
 > 직접 실행해 검증할 수 없었습니다 -- 스펙 파일/빌드 스크립트/`paths.py`의 프리즌
@@ -138,7 +146,10 @@ SQLite)가 자동으로 생기고, 재시작해도 유지됩니다 (`.exe`가 �
 백업 전용 Oracle 계정에는 최소한 다음 권한이 필요합니다: `EXP_FULL_DATABASE` (또는
 필요한 범위만큼의 권한), 대상 Directory Object에 대한 `READ`/`WRITE`,
 `EXECUTE ON DBMS_DATAPUMP`, `EXECUTE ON UTL_FILE` (또는 해당 Directory Object에
-대한 UTL_FILE 접근 권한).
+대한 UTL_FILE 접근 권한). "메뉴얼 백업" 진행률의 상태값(`EXECUTING` 등)은 이 기본
+권한만으로 조회되지만, SOFAR/TOTALWORK 기반 퍼센트 표시는 `V$SESSION_LONGOPS` /
+`DBA_DATAPUMP_SESSIONS` 조회 권한(예: `SELECT_CATALOG_ROLE`)이 추가로 있어야
+나옵니다 -- 없어도 에러 없이 상태값만 표시되고 퍼센트는 생략됩니다.
 
 ## 테스트
 

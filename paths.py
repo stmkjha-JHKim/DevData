@@ -1,19 +1,22 @@
 """paths.py -- where persistent data and bundled static assets live.
 
 Same split OraPulse's own paths.py uses, trimmed to what this project
-needs (no report/log folders). PyInstaller's --onefile mode extracts the
-whole app into a fresh temporary directory (sys._MEIPASS) on every launch
-and discards it on exit -- a plain `__file__`-relative path inside a
-frozen build points there, not somewhere persistent, which is exactly the
-bug this module exists to avoid: registered DBs, policies and job history
-would otherwise vanish every time the packaged .exe restarts.
+needs (no report/log folders). A plain `__file__`-relative path doesn't
+work in a frozen build regardless of PyInstaller mode -- this module
+exists so registered DBs, policies and job history persist next to the
+.exe across restarts instead of vanishing or landing somewhere temporary.
 
-- Bundled, read-only resources (public/*.html/css/js) come from wherever
-  PyInstaller actually extracted them to -- see resource_dir().
+- Bundled, read-only resources (public/*.html/css/js) live directly next
+  to the .exe -- OraVaultBackup.spec is a onedir build (see that file's
+  own comment on why: onefile had to re-extract the whole bundle into a
+  fresh %TEMP% directory on *every* launch, which was slow), so
+  resource_dir()'s own-folder check below is what actually finds them.
+  The sys._MEIPASS fallback only matters for a onefile build, which this
+  project isn't currently shipping -- kept here in case that ever changes.
 - Persistent, read/write data (data/registered_dbs.enc, data/metadata.db)
   lives next to the .exe (app_dir()) whenever that's actually writable --
   a portable/unzipped copy, which is the only distribution shape build.ps1
-  produces today. Falls back to %LOCALAPPDATA%\\OraPulseBackup only if
+  produces today. Falls back to %LOCALAPPDATA%\\OraVaultBackup only if
   that ever isn't writable (e.g. a future installer places the .exe under
   Program Files) -- decided by actually probing for write access, not by
   guessing how the build was installed.
@@ -26,7 +29,7 @@ import shutil
 import sys
 from pathlib import Path
 
-APP_NAME = "OraPulseBackup"
+APP_NAME = "OraVaultBackup"
 
 
 def app_dir() -> Path:

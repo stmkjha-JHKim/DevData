@@ -1,7 +1,7 @@
 """crypto_store.py -- small encrypted-JSON-file helper, generalized from
 OraPulse's favorites.py (same AES-256-GCM scheme: iv(12) + GCM tag(16) +
 ciphertext, base64-encoded, one key file next to the data file). OraPulse
-used this for one thing (saved connections); OraPulse Backup uses the same
+used this for one thing (saved connections); OraVault Backup uses the same
 mechanism for two independent stores -- registered DBs (registered_dbs.py)
 and, later, any other secret-bearing list -- so it's pulled out into a
 reusable {filename, key filename} -> encrypted list store instead of two

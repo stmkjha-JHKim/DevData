@@ -1,6 +1,6 @@
 """backend/routes_recovery.py -- recoverability verification.
 
-Deliberately a documented stub for this first version, same call OraPulse
+Deliberately a documented stub for this first version, same call OraVault
 Backup's earlier RMAN-based prototype made ("real recovery-test execution
 left as a documented stub pending architecture decisions"): actually
 proving a dump file restores means running a real DBMS_DATAPUMP IMPORT

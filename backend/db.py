@@ -5,7 +5,7 @@ registered_dbs.py's separate encrypted file store instead (see that
 module's docstring) -- this file only ever holds a `db_id` reference to
 one of those records, never a password.
 
-This mirrors the earlier OraPulse Backup design decision (see project
+This mirrors the earlier OraVault Backup design decision (see project
 memory / the RMAN-based prototype this one supersedes): SQLAlchemy +
 SQLite for policy/schedule/history metadata, single-admin, no multi-user
 model yet.
@@ -43,7 +43,10 @@ class BackupPolicy(Base):
 
     directory_object = Column(String, nullable=False, default="DATA_PUMP_DIR")
     dump_file_pattern = Column(String, nullable=False, default="%POLICY%_%DATE%.dmp")
-    compression = Column(String, nullable=False, default="MEDIUM")  # NONE/BASIC/LOW/MEDIUM/HIGH
+    # DBMS_DATAPUMP's actual COMPRESSION values -- NOT the BASIC/LOW/MEDIUM/
+    # HIGH scale (that's the separate, Advanced-Compression-licensed
+    # COMPRESSION_ALGORITHM parameter this app doesn't set).
+    compression = Column(String, nullable=False, default="METADATA_ONLY")  # NONE/DATA_ONLY/METADATA_ONLY/ALL
     parallel_degree = Column(Integer, nullable=False, default=1)
     content = Column(String, nullable=False, default="ALL")  # ALL/DATA_ONLY/METADATA_ONLY
 
@@ -75,6 +78,12 @@ class JobRun(Base):
     run_type = Column(String, nullable=False, default="EXPORT")  # EXPORT / IMPORT
     status = Column(String, nullable=False, default="RUNNING")  # RUNNING / SUCCESS / FAILED
     trigger = Column(String, nullable=False, default="MANUAL")  # MANUAL / SCHEDULED
+
+    # The actual DBMS_DATAPUMP job name, set as soon as START_JOB succeeds --
+    # lets a still-RUNNING row be polled for live progress against Oracle's
+    # own USER_DATAPUMP_JOBS/V$SESSION_LONGOPS (see datapump.query_job_progress)
+    # without needing to keep the export connection open for the whole job.
+    job_name = Column(String, nullable=True)
 
     started_at = Column(DateTime, default=datetime.utcnow)
     finished_at = Column(DateTime, nullable=True)

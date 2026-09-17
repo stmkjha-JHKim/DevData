@@ -1,20 +1,21 @@
-# Builds dist\<VERSION>\OraPulseBackup.exe -- a single standalone
-# executable that runs on a machine with no Python installed. See
-# OraPulseBackup.spec for what's bundled.
+# Builds dist\<VERSION>\OraVaultBackup.exe (+ its supporting DLLs/data
+# alongside it -- see OraVaultBackup.spec's own comment on why this is a
+# onedir build, not a single onefile .exe) -- runs on a machine with no
+# Python installed.
 #
 # Usage: .\build.ps1
 #
 # Versioning: the VERSION file (4-part, e.g. "1.0.0.1") holds the version
 # this run is ABOUT to build. Each successful build:
 #   1. creates dist\ if it doesn't exist yet,
-#   2. builds into dist\<VERSION>\OraPulseBackup.exe (a fresh, version-
-#      named folder every time -- old builds are never touched/overwritten),
+#   2. builds into dist\<VERSION>\ (a fresh, version-named folder every
+#      time -- old builds are never touched/overwritten),
 #   3. bumps VERSION's last segment by 1 and writes it back to .\VERSION,
 #      so the *next* run of this script builds the next version
 #      automatically -- you never have to edit VERSION by hand.
 #
 # First run (VERSION starts at 1.0.0.1, as set up for this project) builds
-# dist\1.0.0.1\OraPulseBackup.exe and leaves VERSION at 1.0.0.2 for next
+# dist\1.0.0.1\OraVaultBackup.exe and leaves VERSION at 1.0.0.2 for next
 # time; the run after that builds dist\1.0.0.2\, and so on.
 
 $ErrorActionPreference = "Stop"
@@ -46,14 +47,18 @@ if (Test-Path $versionDir) {
 }
 New-Item -ItemType Directory -Path $versionDir | Out-Null
 
-.\venv\Scripts\python.exe -m PyInstaller OraPulseBackup.spec --noconfirm --clean
+.\venv\Scripts\python.exe -m PyInstaller OraVaultBackup.spec --noconfirm --clean
 
-Move-Item ".\dist\OraPulseBackup.exe" "$versionDir\OraPulseBackup.exe" -Force
+# onedir output is a folder (dist\OraVaultBackup\OraVaultBackup.exe + its
+# DLLs/data) -- move its *contents* up into the version folder so
+# dist\<version>\ is exactly what gets copied to deploy, then drop the now-
+# empty PyInstaller output folder.
+Move-Item ".\dist\OraVaultBackup\*" "$versionDir\" -Force
+Remove-Item ".\dist\OraVaultBackup" -Recurse -Force
 
 # main.py reads VERSION from next to the .exe (paths.py's app_dir()) --
-# it isn't bundled as PyInstaller data since that would land inside the
-# onefile extraction temp dir, not somewhere persistent/discoverable at a
-# fixed relative path.
+# it isn't bundled as PyInstaller data since that would need a rebuild
+# every time VERSION changes, instead of just overwriting one plain file.
 Copy-Item ".\VERSION" "$versionDir\VERSION" -Force
 
 # Bump the last segment for the *next* build. This build's own
@@ -64,7 +69,7 @@ $parts[3] = [int]$parts[3] + 1
 $nextVersion = $parts -join '.'
 $nextVersion | Out-File -FilePath ".\VERSION" -Encoding ascii -NoNewline
 
-$finalExeFull = (Resolve-Path "$versionDir\OraPulseBackup.exe").Path
+$finalExeFull = (Resolve-Path "$versionDir\OraVaultBackup.exe").Path
 Write-Host ""
 Write-Host "Built: $finalExeFull"
 Write-Host "Next build will produce version $nextVersion (dist\$nextVersion\)."

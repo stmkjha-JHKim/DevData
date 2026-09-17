@@ -1,7 +1,15 @@
-fastapi==0.115.0
-uvicorn[standard]==0.30.6
-oracledb==2.4.1
-SQLAlchemy==2.0.35
-APScheduler==3.10.4
-cryptography==43.0.1
-pydantic==2.9.2
+# Minimum versions rather than exact pins (Python >=3.14 on this build
+# machine has no prebuilt wheels for the originally-pinned exact releases
+# of oracledb/pydantic -- pip falls back to a source build, which needs a
+# Rust toolchain + MSVC linker that isn't installed here. Floors keep the
+# same "at least this version" intent the exact pins expressed, while
+# letting pip resolve to whatever newer release actually has a wheel for
+# the interpreter in use -- same fix already applied to OraPulse's own
+# requirements.txt for the same reason.)
+fastapi>=0.115.0
+uvicorn[standard]>=0.30.6
+oracledb>=2.4.1
+SQLAlchemy>=2.0.35
+APScheduler>=3.10.4
+cryptography>=43.0.1
+pydantic>=2.9.2

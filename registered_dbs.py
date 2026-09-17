@@ -1,6 +1,6 @@
 """backend/registered_dbs.py -- the set of Oracle DBs this instance backs
 up. Unlike OraPulse (which connects to exactly one DB per browser session,
-chosen fresh on the connect screen), OraPulse Backup is meant to manage
+chosen fresh on the connect screen), OraVault Backup is meant to manage
 several DBs' backup policies/history centrally -- so a registered DB is a
 first-class, named, persisted record (id/ip/port/sid/account/password),
 not a one-off connection. Storage reuses the exact same encrypted-file
