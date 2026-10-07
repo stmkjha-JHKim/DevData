@@ -122,7 +122,9 @@ def _manual_target_name(scope: str, scope_value: str | None) -> str:
     instead of a fixed "MANUAL" -- TABLE scope: the table name(s);
     SCHEMA scope: the schema name(s); FULL (no single target): "MANUAL".
     Capped at 3 names before falling back to "first name + ETCn" so a
-    50-table selection doesn't produce an absurdly long filename."""
+    50-table selection doesn't produce an absurdly long filename.
+    Only reached for a single combined job -- see _manual_run_targets for
+    what happens to each of several selected tables instead."""
     scope = (scope or "FULL").upper()
     names: list[str] = []
     if scope == "TABLE" and scope_value and ":" in scope_value:
@@ -137,29 +139,30 @@ def _manual_target_name(scope: str, scope_value: str | None) -> str:
     return f"{names[0]}_ETC{len(names) - 1}"
 
 
-def run_manual_sync(db_id: str, directory: str, scope: str, scope_value: str | None) -> dict:
-    """One-off, ad hoc export -- no BackupPolicy involved (policy_id stays
-    NULL on the JobRun row, same as a policy that's since been deleted).
-    Used by the "메뉴얼 백업" tab, where the operator picks the directory
-    and scope by hand for a single immediate run instead of scheduling a
-    recurring policy. Fixed PARALLEL/CONTENT defaults for now, matching
-    BackupPolicy's own defaults -- exposing those as tab options too is a
-    likely next iteration, not added yet. COMPRESSION defaults to
-    METADATA_ONLY, a real DBMS_DATAPUMP COMPRESSION value (unlike the
-    BASIC/LOW/MEDIUM/HIGH scale, which is the separate, license-gated
-    COMPRESSION_ALGORITHM parameter this app doesn't set -- passing one of
-    those as COMPRESSION is exactly what raises ORA-39207).
+def _manual_run_targets(scope: str, scope_value: str | None) -> list[tuple[str, str | None]]:
+    """(label, scope_value) pairs, one per separate DBMS_DATAPUMP job
+    run_manual_sync should start. Normally just one pair covering the whole
+    requested scope -- but TABLE scope with more than one table selected
+    returns one pair PER TABLE instead, each with its own single-table
+    scope_value ("SCHEMA:TABLE"), so each table lands in its own dump/log
+    file rather than one dump file covering every selected table."""
+    scope = (scope or "FULL").upper()
+    if scope == "TABLE" and scope_value and ":" in scope_value:
+        schema, tables_part = scope_value.split(":", 1)
+        tables = [t.strip() for t in tables_part.split(",") if t.strip()]
+        if len(tables) > 1:
+            return [(t, f"{schema.strip()}:{t}") for t in tables]
+    return [(_manual_target_name(scope, scope_value), scope_value)]
 
-    Only runs start_export_job() (OPEN..START_JOB..DETACH) synchronously --
-    fast, and surfaces a real argument error (e.g. ORA-39001 from a bad
-    scope/schema/table name) immediately instead of after a long wait.
-    The actual WAIT_FOR_JOB happens in a background thread
-    (_finish_manual_run), so this returns with a job name to poll as soon
-    as the job is confirmed running, not once it's finished."""
-    db_record = registered_dbs.get_db(db_id)
-    if db_record is None:
-        return {"success": False, "message": "선택한 DB가 등록되어 있지 않습니다."}
 
+def _start_one_manual_run(db_record: dict, creds: dict, directory: str, label: str, scope: str,
+                           target_scope_value: str | None, run_ts: str) -> dict:
+    """Creates one JobRun row, starts its DBMS_DATAPUMP job synchronously
+    (fast -- OPEN..START_JOB..DETACH), and if that succeeds, hands the long
+    WAIT_FOR_JOB part off to a background thread. One call per entry from
+    _manual_run_targets(); run_manual_sync calls this once per table when
+    several are selected, so each table's job starts (and can fail, e.g.
+    ORA-39001 on a bad name) independently of the others."""
     session = get_session()
     try:
         run = JobRun(
@@ -179,17 +182,15 @@ def run_manual_sync(db_id: str, directory: str, scope: str, scope_value: str | N
         session.close()
 
     spec = datapump.ExportSpec(
-        policy_name=_manual_target_name(scope, scope_value),
+        policy_name=label,
         directory=directory,
         dump_file_pattern="%POLICY%_%DATE%.dmp",
         scope=scope,
-        scope_value=scope_value,
+        scope_value=target_scope_value,
         compression="METADATA_ONLY",
         parallel_degree=1,
         content="ALL",
     )
-    creds = registered_dbs.to_creds(db_record)
-    run_ts = datetime.now().strftime("%Y%m%d_%H%M%S")
 
     try:
         started = datapump.start_export_job(creds, spec, run_ts)
@@ -206,7 +207,7 @@ def run_manual_sync(db_id: str, directory: str, scope: str, scope_value: str | N
                 session.commit()
         finally:
             session.close()
-        return {"success": False, "runId": run_id, "status": "FAILED", "message": str(err), "scriptText": ""}
+        return {"runId": run_id, "label": label, "status": "FAILED", "message": str(err), "scriptText": ""}
 
     session = get_session()
     try:
@@ -223,13 +224,50 @@ def run_manual_sync(db_id: str, directory: str, scope: str, scope_value: str | N
     ).start()
 
     return {
-        "success": True,
         "runId": run_id,
+        "label": label,
         "jobName": started.job_name,
         "status": "RUNNING",
         "message": "백업이 시작되었습니다. 진행 상태를 확인하세요.",
         "scriptText": started.script_text,
     }
+
+
+def run_manual_sync(db_id: str, directory: str, scope: str, scope_value: str | None) -> dict:
+    """One-off, ad hoc export -- no BackupPolicy involved (policy_id stays
+    NULL on each JobRun row, same as a policy that's since been deleted).
+    Used by the "메뉴얼 백업" tab, where the operator picks the directory
+    and scope by hand for a single immediate run instead of scheduling a
+    recurring policy. Fixed PARALLEL/CONTENT defaults for now, matching
+    BackupPolicy's own defaults -- exposing those as tab options too is a
+    likely next iteration, not added yet. COMPRESSION defaults to
+    METADATA_ONLY, a real DBMS_DATAPUMP COMPRESSION value (unlike the
+    BASIC/LOW/MEDIUM/HIGH scale, which is the separate, license-gated
+    COMPRESSION_ALGORITHM parameter this app doesn't set -- passing one of
+    those as COMPRESSION is exactly what raises ORA-39207).
+
+    Returns {"success", "runs": [...]} -- usually one entry, but TABLE
+    scope with several tables selected produces one entry per table (see
+    _manual_run_targets), each started independently via
+    _start_one_manual_run so one bad table name doesn't block the rest.
+    Each entry's job only runs start_export_job() synchronously -- fast,
+    and surfaces a real argument error (e.g. ORA-39001) immediately instead
+    of after a long wait. The actual WAIT_FOR_JOB happens in a background
+    thread per entry (_finish_manual_run), so this returns with job names
+    to poll as soon as they're confirmed running, not once they finish."""
+    db_record = registered_dbs.get_db(db_id)
+    if db_record is None:
+        return {"success": False, "message": "선택한 DB가 등록되어 있지 않습니다."}
+
+    creds = registered_dbs.to_creds(db_record)
+    run_ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    targets = _manual_run_targets(scope, scope_value)
+
+    runs = [
+        _start_one_manual_run(db_record, creds, directory, label, scope, target_scope_value, run_ts)
+        for label, target_scope_value in targets
+    ]
+    return {"success": any(r["status"] == "RUNNING" for r in runs), "runs": runs}
 
 
 async def run_manual_async(db_id: str, directory: str, scope: str, scope_value: str | None) -> dict:

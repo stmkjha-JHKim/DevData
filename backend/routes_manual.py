@@ -100,10 +100,21 @@ async def list_directories(db_id: str):
 
 @router.get("/{db_id}/schemas")
 async def list_schemas(db_id: str):
+    record = registered_dbs.get_db(db_id)
+    if record is None:
+        return {"success": False, "message": "등록되지 않은 DB입니다."}
     res = await _query(db_id, _SCHEMAS_SQL)
     if not res["success"]:
         return res
-    return {"success": True, "schemas": [r[0] for r in res["rows"]]}
+    schemas = [r[0] for r in res["rows"]]
+    # The connected account's own schema is the one you'd back up most
+    # often, so it's moved to the front instead of wherever it falls
+    # alphabetically -- everything else stays in the same order.
+    own_schema = (record.get("account") or "").upper()
+    if own_schema in schemas:
+        schemas.remove(own_schema)
+        schemas.insert(0, own_schema)
+    return {"success": True, "schemas": schemas}
 
 
 @router.get("/{db_id}/tables")
