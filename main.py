@@ -8,12 +8,22 @@ user runs their own instance of this process, against their own Oracle
 credentials.
 
 Because of that, all the internet-facing hardening a real multi-user hosted
-web app would need (app-level login/sign-up, JWT, rate limiting, CORS) is
-intentionally left out here -- it doesn't apply to this deployment model.
-This server is bound to 127.0.0.1 and only ever reached by a browser on this
-same machine -- there is no network path for anyone else to reach it. The
-Oracle DB account/password entered on the connect screen is the only
-"login" needed, exactly like a normal desktop DB client.
+web app would need (JWT, rate limiting, CORS, etc.) is intentionally left
+out here -- it doesn't apply to this deployment model. This server is bound
+to 127.0.0.1 and only ever reached by a browser on this same machine --
+there is no network path for anyone else to reach it. The Oracle DB
+account/password entered on the connect screen remains the only "login"
+Oracle itself ever sees, exactly like a normal desktop DB client.
+
+There is, separately, a local app-password gate (app_lock.py,
+backend/routes_app_lock.py, public/lock.html) in front of this whole
+server -- a different concern from the paragraph above, aimed at a
+different risk: not "is this reachable from the internet" (it isn't), but
+"can someone else who can open a browser on *this* PC -- another Windows
+account, a coworker walking up to an unlocked session -- see this app's
+saved Oracle connection details without typing anything first." See
+app_lock.py's own top-of-file comment and README's "App Password" section
+for exactly what it does and does not protect against.
 
 Only Oracle Database 12.1 or later is supported (python-oracledb's pure-
 Python "thin mode" -- no Oracle Instant Client / thick-mode install
@@ -45,6 +55,7 @@ from backend.core import APP_VERSION, HOST, PUBLIC_DIR, app
 from backend import (
     routes_account_security,
     routes_alert_log,
+    routes_app_lock,
     routes_connect,
     routes_jobs,
     routes_object_view,
@@ -58,6 +69,7 @@ from backend import (
 )
 
 for _router_module in (
+    routes_app_lock,
     routes_connect,
     routes_session,
     routes_table_stats,

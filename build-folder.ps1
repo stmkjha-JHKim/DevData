@@ -83,9 +83,6 @@ if (-not (Test-Path ".\venv\Scripts\python.exe")) {
     .\venv\Scripts\python.exe -m pip install -r requirements.txt pyinstaller --quiet
 }
 
-$version = (Get-Content ".\VERSION" -Raw).Trim()
-$finalDir = ".\dist\OraPulse_ver_$version"
-
 # PyInstaller's COLLECT always names its output folder after the .spec's
 # own name='OraPulse' (there's no --name override for an existing .spec
 # file), so it's built into a build-specific staging parent first --
@@ -99,6 +96,17 @@ Remove-Item $stagingParent -Recurse -Force -ErrorAction SilentlyContinue
 # previous run's build\ cache, which otherwise leaves this script trying
 # to move files that were never actually rebuilt.
 .\venv\Scripts\python.exe -m PyInstaller OraPulse-Folder.spec --noconfirm --clean --distpath $stagingParent
+
+# Auto-increment VERSION (1.NNNN) by 1 on every successful build, so each
+# build gets its own number without needing to edit VERSION by hand. Done
+# here (after PyInstaller succeeds, not before) so a failed build never
+# burns a version number.
+$versionParts = (Get-Content ".\VERSION" -Raw).Trim() -split '\.'
+$version = "{0}.{1:D4}" -f [int]$versionParts[0], ([int]$versionParts[1] + 1)
+[System.IO.File]::WriteAllText("$PSScriptRoot\VERSION", "$version`r`n")
+Write-Host "Version bumped to $version"
+
+$finalDir = ".\dist\OraPulse_ver_$version"
 
 $distRoot = "$stagingParent\OraPulse"
 $lib = "$distRoot\lib"

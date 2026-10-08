@@ -71,14 +71,36 @@
 
     <Directory Id="TARGETDIR" Name="SourceDir">
       <!-- ProgramFilesFolder always resolves to the 32-bit Program Files
-           (x86) regardless of package platform; ProgramFiles64Folder is
-           the distinct well-known directory for a 64-bit install (see
-           requirement: 64-bit MSI, C:\Program Files\OraPulse(ODM), never
-           Program Files (x86)). -->
-      <Directory Id="ProgramFiles64Folder">
-        <Directory Id="INSTALLFOLDER" Name="OraPulse(ODM)">
+           (x86) directory regardless of this package's own (x64) platform;
+           that split is intentional per this product's own install-path
+           requirement: C:\Program Files (x86)\OraPulse_ODM_x86. Windows
+           Installer allows an x64 package to target either Program Files
+           folder; it only affects where files land, not whether the
+           bundled binaries themselves run (they're still genuine 64-bit
+           code either way). -->
+      <Directory Id="ProgramFilesFolder">
+        <Directory Id="INSTALLFOLDER" Name="OraPulse_ODM_x86">
           <Directory Id="LIBFOLDER" Name="lib" />
           <Directory Id="PUBLICFOLDER" Name="public" />
+          <!-- Not populated by this installer; declared only so
+               CMP_AppLockCleanup below can target app-lock.json here on
+               uninstall, for the edge case where OraPulse was actually run
+               elevated and could write its data/ folder next to the exe
+               instead of falling back to LocalAppDataFolder (see
+               paths.py's _writable() probe). -->
+          <Directory Id="INSTALLFOLDER_DATA" Name="data" />
+        </Directory>
+      </Directory>
+      <!-- Also not populated by this installer; this is where OraPulse
+           actually stores its data (including app-lock.json, the App
+           Password verifier) when installed per-machine to Program Files,
+           since a non-admin user can't write there at runtime; see
+           paths.py's module docstring and README's "Data storage &
+           privacy" section. Declared here purely so CMP_AppLockCleanup
+           can reach app-lock.json for removal on uninstall. -->
+      <Directory Id="LocalAppDataFolder">
+        <Directory Id="APPDATA_ORAPULSE" Name="OraPulse">
+          <Directory Id="APPDATA_ORAPULSE_DATA" Name="data" />
         </Directory>
       </Directory>
       <Directory Id="ProgramMenuFolder">
@@ -146,6 +168,44 @@
       </Component>
     </DirectoryRef>
 
+    <!-- Removing OraPulse from "Programs and Features" also clears any
+         previously-set App Password: neither app-lock.json below is ever
+         shipped by this installer (RemoveFile only ever deletes, never
+         installs), so this component owns no actual file of its own and
+         uses the same per-user-registry-as-KeyPath idiom as the shortcut
+         components above. This is a deliberate exception to this
+         installer otherwise always leaving OraPulse's local data alone on
+         uninstall (see README's "Data storage & privacy" section;
+         favorites, report/snapshot history, and tuning history are still
+         untouched): a reinstall should start from a fresh App Password
+         rather than silently demanding whatever password was set on the
+         previous install, which is exactly what app_lock.py's own
+         documented "delete app-lock.json to reset just the App Password"
+         recovery procedure already does by hand; this just automates that
+         one step. Both RemoveFile entries point at the same filename in
+         the two different places paths.py could have actually created it
+         in (see the two Directory declarations above); whichever one
+         doesn't exist is silently skipped. -->
+    <DirectoryRef Id="INSTALLFOLDER">
+      <Component Id="CMP_AppLockCleanup" Guid="*">
+        <RegistryValue Root="HKCU" Key="Software\OraPulse(ODM)" Name="AppLockCleanupRegistered" Type="integer" Value="1" KeyPath="yes" />
+        <RemoveFile Id="RemoveAppLockJsonAppData" Directory="APPDATA_ORAPULSE_DATA" Name="app-lock.json" On="uninstall" />
+        <RemoveFile Id="RemoveAppLockJsonInstallDir" Directory="INSTALLFOLDER_DATA" Name="app-lock.json" On="uninstall" />
+        <!-- RemoveFolder only ever deletes a folder that is already empty
+             (Windows Installer never force-deletes files it didn't
+             install), so these are a no-op whenever favorites.enc,
+             snapshot-history.jsonl, reports\, etc. are still there, which
+             is the common case and exactly what README's "Data storage &
+             privacy" section promises stays untouched. They only matter
+             in the rare case where app-lock.json genuinely was the only
+             thing ever written to that per-user folder, and exist
+             primarily to satisfy WiX's own ICE64 check (every directory
+             under the user profile must appear in the RemoveFile table). -->
+        <RemoveFolder Id="RemoveAppDataOraPulseData" Directory="APPDATA_ORAPULSE_DATA" On="uninstall" />
+        <RemoveFolder Id="RemoveAppDataOraPulse" Directory="APPDATA_ORAPULSE" On="uninstall" />
+      </Component>
+    </DirectoryRef>
+
     <!-- Mandatory: the app itself, both bundled folders, and the Start
          Menu shortcut. Absent="disallow" keeps this un-uncheckable in the
          Custom Setup feature tree. -->
@@ -160,6 +220,7 @@
       <ComponentRef Id="CMP_DllVcRuntime" />
       <ComponentRef Id="CMP_DllVcRuntime1" />
       <ComponentRef Id="CMP_StartMenuShortcut" />
+      <ComponentRef Id="CMP_AppLockCleanup" />
       <ComponentGroupRef Id="LibComponents" />
       <ComponentGroupRef Id="PublicComponents" />
     </Feature>

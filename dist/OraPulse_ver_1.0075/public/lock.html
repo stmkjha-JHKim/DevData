@@ -1,0 +1,417 @@
+<title>OraPulse - 앱 비밀번호</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<style>
+  :root {
+    --bg-1: #0b1220;
+    --bg-2: #111a2e;
+    --panel-border: #26314d;
+    --text-main: #e6ebf5;
+    --text-sub: #8b96b3;
+    --accent: #4f7cff;
+    --error-bg: #331419;
+    --error-border: #8f2b3a;
+    --error-text: #ff6b7f;
+    --input-bg: #ffffff;
+    --input-text: #1a2238;
+    --input-placeholder: #9aa3b8;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background:
+      radial-gradient(circle at 20% 20%, rgba(79,124,255,0.10), transparent 40%),
+      radial-gradient(circle at 80% 80%, rgba(79,124,255,0.08), transparent 40%),
+      var(--bg-1);
+    font-family: "Segoe UI", "Malgun Gothic", -apple-system, BlinkMacSystemFont, sans-serif;
+    color: var(--text-main);
+    padding: 24px;
+  }
+
+  .panel {
+    width: 100%;
+    max-width: 420px;
+    border-radius: 20px;
+    background: var(--bg-2);
+    border: 1px solid var(--panel-border);
+    box-shadow: 0 30px 70px rgba(0,0,0,0.5);
+    padding: 40px 36px 32px;
+  }
+
+  .brand-icon-wrap {
+    width: 56px;
+    height: 56px;
+    border-radius: 14px;
+    background: linear-gradient(160deg, #4f6ef7 0%, #17b3c4 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 18px;
+  }
+
+  .brand-icon-wrap img { width: 32px; height: 32px; display: block; }
+
+  h1 {
+    margin: 0;
+    font-size: 21px;
+    font-weight: 700;
+  }
+
+  .app-version {
+    font-size: 11px;
+    font-weight: 400;
+    opacity: 0.6;
+    margin-left: 4px;
+  }
+
+  .sub {
+    margin: 6px 0 0;
+    font-size: 13px;
+    color: var(--text-sub);
+    line-height: 1.5;
+  }
+
+  form {
+    margin-top: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .field { display: flex; flex-direction: column; gap: 6px; }
+
+  label { font-size: 12.5px; color: var(--text-sub); font-weight: 500; }
+
+  input {
+    background: var(--input-bg);
+    color: var(--input-text);
+    border: 1px solid transparent;
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: 14px;
+    outline: none;
+    transition: box-shadow 0.15s ease;
+    font-family: inherit;
+  }
+
+  input::placeholder { color: var(--input-placeholder); }
+  input:focus { box-shadow: 0 0 0 3px rgba(79,124,255,0.35); }
+  input.invalid { box-shadow: 0 0 0 2px var(--error-border); }
+
+  button.submit {
+    margin-top: 4px;
+    background: linear-gradient(135deg, #6a5cf0, #4f6ef7);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    padding: 13px;
+    font-size: 14.5px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: filter 0.15s ease, transform 0.05s ease;
+  }
+
+  button.submit:hover { filter: brightness(1.08); }
+  button.submit:active { transform: translateY(1px); }
+  button.submit:disabled { opacity: 0.6; cursor: not-allowed; }
+
+  .result {
+    margin-top: 14px;
+    padding: 11px 13px;
+    border-radius: 8px;
+    font-size: 13px;
+    line-height: 1.5;
+    display: none;
+    word-break: break-word;
+  }
+
+  .result.show { display: block; }
+
+  .result.error {
+    background: var(--error-bg);
+    border: 1px solid var(--error-border);
+    color: var(--error-text);
+  }
+
+  .field-error {
+    font-size: 11.5px;
+    color: var(--error-text);
+    min-height: 14px;
+  }
+
+  details.hint {
+    margin-top: 20px;
+    font-size: 12px;
+    color: var(--text-sub);
+  }
+
+  details.hint summary {
+    cursor: pointer;
+    color: var(--accent);
+    font-size: 12.5px;
+  }
+
+  details.hint p { line-height: 1.6; margin: 8px 0 0; }
+  details.hint code {
+    background: rgba(255,255,255,0.08);
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-size: 11.5px;
+  }
+
+  .notice {
+    margin-top: 18px;
+    font-size: 11px;
+    color: #5b6786;
+    line-height: 1.6;
+  }
+</style>
+
+<div class="panel">
+  <div class="brand-icon-wrap"><img src="/favicon.svg" alt="OraPulse logo"></div>
+  <h1 id="title">OraPulse<span class="app-version" id="appVersion"></span></h1>
+  <p class="sub" id="subtitle">잠시만 기다려주세요...</p>
+
+  <form id="lockForm" hidden>
+    <!-- Starts hidden: whether this is "set a new password" (first run)
+         or "enter the existing one" isn't known until loadStatus() below
+         resolves, and showing anything before that -- even briefly, on a
+         slow first launch right after install -- risks a half-labeled
+         form (a lone "앱 비밀번호" field with no "new" vs "existing"
+         context) that looks exactly like a login prompt even when nothing
+         has ever been configured. applyMode() un-hides this once the real
+         mode is known, already showing the correct labels/fields from the
+         very first frame the user actually sees it in.
+
+         Order matters here: 1) password, 2) its confirmation directly
+         below it -- both the visual/DOM order and the resulting Tab
+         order. The confirm field only ever applies to first-time setup
+         (see applyMode() below); on the unlock screen (a password already
+         exists) it's both hidden AND disabled, not just visually hidden,
+         so it can never be tabbed into, focused, or submitted even if
+         something un-hides it client-side. -->
+    <div class="field">
+      <label for="password" id="passwordLabel">앱 비밀번호</label>
+      <input id="password" type="password" autocomplete="current-password" placeholder="••••••••">
+      <div class="field-error" id="err-password"></div>
+    </div>
+    <div class="field" id="confirmField" hidden>
+      <label for="confirmPassword">비밀번호 확인</label>
+      <input id="confirmPassword" type="password" autocomplete="new-password" placeholder="••••••••" disabled>
+      <div class="field-error" id="err-confirm"></div>
+    </div>
+    <button type="submit" class="submit" id="submitBtn">확인</button>
+    <div class="result error" id="result"></div>
+  </form>
+
+  <details class="hint" id="forgotHint" hidden>
+    <summary>비밀번호를 잊으셨나요?</summary>
+    <p>
+      안전을 위해 이 화면에서 비밀번호를 초기화하는 기능은 제공하지 않습니다(그런 기능이 있으면 이 잠금 자체가 의미가 없어지기 때문입니다).
+      OraPulse를 완전히 종료한 뒤, 데이터 폴더 안의 <code>app-lock.json</code> 파일만 삭제하면 앱 비밀번호만 초기화되고
+      즐겨찾기·점검 이력 등 나머지 데이터는 영향을 받지 않습니다. 데이터 폴더 위치는 README의
+      "데이터 저장 및 개인정보" 항목을 참고하세요 (보통 실행 파일 옆 <code>data\</code>, 또는
+      <code>%LOCALAPPDATA%\OraPulse\data\</code>).
+    </p>
+  </details>
+
+  <p class="notice">
+    이 비밀번호는 이 PC를 사용할 수 있는 다른 사람이 OraPulse 화면과 저장된 Oracle 접속 정보를 곧바로 보지 못하게 막는
+    앱 자체의 잠금입니다. Windows 로그인이나 디스크 암호화를 대체하지 않으며, 이 PC의 파일에 직접 접근할 수 있는 사람까지
+    막지는 못합니다.
+  </p>
+</div>
+
+<script>
+  const subtitleEl = document.getElementById('subtitle');
+  const appVersionEl = document.getElementById('appVersion');
+  const lockForm = document.getElementById('lockForm');
+  const confirmField = document.getElementById('confirmField');
+  const confirmInput = document.getElementById('confirmPassword');
+  const confirmErr = document.getElementById('err-confirm');
+  const passwordInput = document.getElementById('password');
+  const passwordLabel = document.getElementById('passwordLabel');
+  const passwordErr = document.getElementById('err-password');
+  const submitBtn = document.getElementById('submitBtn');
+  const resultBox = document.getElementById('result');
+  const forgotHint = document.getElementById('forgotHint');
+
+  let mode = 'unlock'; // or 'setup'
+
+  function showError(message) {
+    resultBox.textContent = message;
+    resultBox.classList.add('show');
+  }
+
+  function clearError() {
+    resultBox.classList.remove('show');
+    resultBox.textContent = '';
+  }
+
+  function applyMode() {
+    if (mode === 'setup') {
+      // First run only: ask for the new password, then its confirmation
+      // directly below -- see the form's own markup comment for why the
+      // confirm field is never shown (or enabled) outside this branch.
+      subtitleEl.textContent = '처음 실행되었습니다. 로컬 데이터와 저장된 Oracle 접속 정보를 보호할 앱 비밀번호를 설정하세요.';
+      passwordLabel.textContent = '새 비밀번호 (최소 8자)';
+      confirmField.hidden = false;
+      confirmInput.disabled = false;
+      submitBtn.textContent = '비밀번호 설정';
+      forgotHint.hidden = true;
+      passwordInput.setAttribute('autocomplete', 'new-password');
+    } else {
+      // A password already exists: unlock screen asks only for it. The
+      // confirm field is both hidden and disabled -- disabled so a
+      // disabled/hidden input is skipped entirely by Tab order and can
+      // never be focused, typed into, or included in a form submission,
+      // not merely invisible.
+      subtitleEl.textContent = '계속하려면 앱 비밀번호를 입력하세요.';
+      passwordLabel.textContent = '앱 비밀번호';
+      confirmField.hidden = true;
+      confirmInput.disabled = true;
+      confirmInput.value = '';
+      submitBtn.textContent = '잠금 해제';
+      forgotHint.hidden = false;
+      passwordInput.setAttribute('autocomplete', 'current-password');
+    }
+    lockForm.hidden = false;
+  }
+
+  function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  // A few short retries (not just one attempt) before giving up: right
+  // after a fresh install, this page's own HTML can finish loading a
+  // moment before the server has fully settled (first-run disk I/O,
+  // antivirus scanning a never-before-seen .exe, etc.), which would
+  // otherwise turn an ordinary cold start into a spurious failure here.
+  async function fetchStatusWithRetries() {
+    const delaysMs = [0, 300, 800];
+    for (const delay of delaysMs) {
+      if (delay) await sleep(delay);
+      try {
+        const res = await fetch('/api/app-lock/status');
+        const data = await res.json();
+        if (data.success) return data;
+      } catch (err) {
+        // try again, if any attempts remain
+      }
+    }
+    return null;
+  }
+
+  async function loadStatus() {
+    const data = await fetchStatusWithRetries();
+    // configured === true is the only case this page should ever present
+    // as "enter your existing password" -- every other outcome (a
+    // positive "not configured yet" answer, or no usable answer at all
+    // after retrying) defaults to the first-run setup screen instead.
+    // Both branches re-validate server-side anyway (setup is rejected
+    // with 409 if a password genuinely already exists, verify is
+    // rejected with 409 if one doesn't), so this default can only ever
+    // affect which screen a rare failure shows, never bypass anything.
+    mode = (data && data.configured === true) ? 'unlock' : 'setup';
+    applyMode();
+    passwordInput.focus();
+  }
+
+  async function loadVersion() {
+    try {
+      const res = await fetch('/api/version');
+      const data = await res.json();
+      if (data.success && data.version) {
+        appVersionEl.textContent = `v${data.version}`;
+      }
+    } catch (err) {
+      // non-critical
+    }
+  }
+
+  lockForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    clearError();
+    passwordErr.textContent = '';
+    confirmErr.textContent = '';
+    passwordInput.classList.remove('invalid');
+    confirmInput.classList.remove('invalid');
+
+    const password = passwordInput.value;
+    if (!password) {
+      passwordErr.textContent = '비밀번호를 입력하세요.';
+      passwordInput.classList.add('invalid');
+      return;
+    }
+
+    // Confirm-password is only ever relevant in setup mode (see
+    // applyMode()) -- checked client-side first for immediate feedback
+    // under the confirm field itself; the server still re-validates both
+    // the match and the minimum length regardless (see
+    // app_lock.validate_new_password()), so this is a UX convenience, not
+    // the actual security boundary.
+    if (mode === 'setup') {
+      const confirmPassword = confirmInput.value;
+      if (!confirmPassword) {
+        confirmErr.textContent = '비밀번호 확인을 입력하세요.';
+        confirmInput.classList.add('invalid');
+        return;
+      }
+      if (password !== confirmPassword) {
+        confirmErr.textContent = '비밀번호와 확인 비밀번호가 일치하지 않습니다.';
+        confirmInput.classList.add('invalid');
+        return;
+      }
+    }
+
+    submitBtn.disabled = true;
+    const endpoint = mode === 'setup' ? '/api/app-lock/setup' : '/api/app-lock/verify';
+    const payload = mode === 'setup'
+      ? { password, confirmPassword: confirmInput.value }
+      : { password };
+
+    try {
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        window.location.href = '/';
+        return;
+      }
+
+      showError(data.message || '요청을 처리하지 못했습니다.');
+      if (res.status === 429) {
+        // Stays disabled until the server-side throttle window this
+        // response reported has actually elapsed, instead of letting the
+        // user immediately retry and just collect another penalty.
+        setTimeout(() => {
+          submitBtn.disabled = false;
+          passwordInput.focus();
+        }, Math.max(500, (data.retryAfterSeconds || 1) * 1000));
+      } else {
+        submitBtn.disabled = false;
+      }
+    } catch (err) {
+      showError(`서버에 연결할 수 없습니다: ${err.message}`);
+      submitBtn.disabled = false;
+    } finally {
+      passwordInput.value = '';
+      confirmInput.value = '';
+      if (!submitBtn.disabled) {
+        passwordInput.focus();
+      }
+    }
+  });
+
+  loadVersion();
+  loadStatus();
+</script>

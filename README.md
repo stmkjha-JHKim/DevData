@@ -2,17 +2,24 @@
 
 **Oracle Database Monitoring(ODM)** -- a small, standalone Oracle Database
 monitoring app that runs entirely on the user's own machine. There is no
-shared backend, no central server, and no app-level login: each user runs
-their own local instance, points it at an Oracle DB by typing in connection
-details, and opens the dashboard in a browser -- exactly like using a
-desktop DB client (SQL Developer, Toad, etc.), except the "client" happens
-to be a small local web server.
+shared backend and no central server: each user runs their own local
+instance, points it at an Oracle DB by typing in connection details, and
+opens the dashboard in a browser -- exactly like using a desktop DB client
+(SQL Developer, Toad, etc.), except the "client" happens to be a small
+local web server. The app does have its own local **App Password** gate
+(see below) protecting the app itself and its saved data on a shared PC --
+but Oracle authentication remains exactly as before: the Oracle account/
+password typed into the connect screen is the only credential Oracle
+itself ever sees.
 
 ## Overview
 
-- **No login of its own.** The Oracle account/password typed into the
-  connect screen is the only credential involved, and it never leaves the
-  machine OraPulse is running on. The server binds to `127.0.0.1` only.
+- **No Oracle-specific login of its own.** The Oracle account/password
+  typed into the connect screen is the only credential Oracle ever sees,
+  and it never leaves the machine OraPulse is running on. The server binds
+  to `127.0.0.1` only. Access to the app itself (and everything it stores)
+  is separately protected by the local App Password gate -- see
+  [App Password](#app-password) below.
 - **Single Python backend.** `main.py` (FastAPI + `python-oracledb`) serves
   both the REST API and the static frontend in `public/`. Earlier in
   development, the exact same feature set was also maintained in parallel as
@@ -165,6 +172,55 @@ Save a connection's IP/Port/SID/account (password included) to a local,
 AES-256-GCM-encrypted store. Clicking a saved favorite on the connect
 screen connects immediately, no extra click needed.
 
+### App Password
+On first launch, OraPulse asks you to set a local **App Password** before
+showing anything else. From then on, every launch (and every browser tab
+that reaches the app without an already-unlocked session) shows that same
+lock screen first -- the connect screen, the dashboard, and every API
+(Favorites, Oracle connect, report/snapshot/tuning history, all of it) stay
+unreachable until the correct password is entered. This exists for a
+specific, narrow purpose: stopping someone else who can open a browser on
+*this same PC* -- another Windows account, a coworker walking up to an
+unlocked session -- from immediately seeing this app's saved Oracle
+connection details or dashboard, without typing anything first.
+
+**What this is -- and isn't:**
+- The password is verified with a PBKDF2-HMAC-SHA256 hash (600,000
+  iterations) and a random salt stored in `data/app-lock.json`; the
+  plaintext password itself is never written to disk, logged, or sent back
+  to the browser.
+- It is a **gate in front of the app**, not an encryption key for the data
+  itself. Favorites (`favorites.enc`), the Weekly Report snapshot history,
+  and the Tuning Advisor's snapshot keep using their own independent
+  AES-256-GCM keys exactly as before -- nothing about those files' format
+  or keys changes because of this feature, and an existing install upgrades
+  with zero migration needed.
+- It is **not** a replacement for Windows login or disk encryption, and
+  doesn't claim to be. Anyone with ordinary filesystem access to this PC
+  (another admin account, physical access to an unencrypted disk, etc.)
+  can still read `favorites.enc` directly with its own key file, exactly as
+  they always could -- the App Password only raises the bar for someone
+  using the app *through a browser*, not someone with file-level access.
+- Unlocking is remembered for the current server process only (a 2-hour
+  idle timeout re-locks an unattended session sooner than that). Restarting
+  OraPulse -- including Exit from the tray icon -- always asks for the
+  password again on the next launch; nothing about "is this browser
+  unlocked" is ever written to disk.
+- Repeated wrong attempts are throttled with an increasing delay (capped at
+  30 seconds) -- a soft deterrent against automated guessing, not a hard
+  lockout, since this is a local-only app with no concept of "which remote
+  attacker" to block.
+
+**If you forget the App Password:** there is deliberately no in-app "reset"
+button on the lock screen -- a one-click bypass reachable from the lock
+screen itself would make the lock pointless. Instead, close OraPulse
+completely and delete just `app-lock.json` from the data folder (see
+[Data storage & privacy](#data-storage--privacy) for its exact location);
+the next launch shows the first-run setup screen again. This resets *only*
+the App Password -- Favorites, report/snapshot history, and everything
+else are completely unaffected, since (as above) none of it was ever
+encrypted with the App Password to begin with.
+
 ### Reducing DB load
 The DashBoard tab's data is split into independently-timed auto-refresh
 tiers instead of one fixed interval for everything: session list/blocking
@@ -233,6 +289,7 @@ orapulse/
 ├── main.py                 # Entry point: creates the app, registers routes, launches the server
 ├── backend/                # FastAPI route modules, one file per tab/feature
 │   ├── core.py             # Shared infra: app instance, DB connection helper, session store
+│   ├── routes_app_lock.py  # App Password status/setup/verify + the HTTP gate middleware
 │   ├── routes_connect.py   # Version, connect/disconnect lifecycle, Favorites, DashBoard's /api/db-status
 │   ├── routes_session.py   # Session List row actions (wait detail, view SQL, kill session)
 │   ├── routes_table_stats.py  # Table Statistics Collection + Table Properties
@@ -247,6 +304,7 @@ orapulse/
 │   └── routes_report.py    # Check Report generation
 ├── report.py                # Check Report: point-in-time inspection checklist + HTML renderer
 ├── favorites.py              # Encrypted local favorites store
+├── app_lock.py              # App Password: PBKDF2 hash storage, unlock sessions, brute-force throttle
 ├── tuning.py                 # Rule-based Tuning Advisor
 ├── browser.py               # Opens the isolated browser profile at launch (see Desktop packaging)
 ├── tray.py                 # Windows system tray icon (packaged build only)
@@ -262,6 +320,7 @@ orapulse/
 └── public/                 # Browser frontend
     ├── index.html          # Connect screen
     ├── dashboard.html      # The dashboard shell (markup only -- styles/scripts below)
+    ├── lock.html           # App Password setup/unlock screen (see App Password above)
     ├── troubleshooting.html
     ├── favicon.svg / favicon.ico
     ├── images/help/        # Screenshots embedded in the Help tab's user manual
@@ -402,6 +461,11 @@ Oracle DB the user connects to:
 - `favorites.enc` / `.favorites-key` -- saved connections, AES-256-GCM
 - `snapshot-history.jsonl` / `.snapshot-key` -- Weekly Report history
 - `tuning-last-snapshot.enc` / `.tuning-key` -- Tuning Advisor's previous check
+- `app-lock.json` -- the App Password's PBKDF2 hash + salt (see
+  [App Password](#app-password) above); never the plaintext password.
+  Deleting just this one file resets the App Password without touching
+  anything else listed here -- the documented recovery path if it's
+  forgotten.
 - `.instance-port` -- the port the currently running instance is
   listening on, used only to detect/redirect to an already-running
   instance on relaunch; not sensitive, safe to delete while the app isn't
@@ -444,3 +508,9 @@ Remove-Item "$env:LOCALAPPDATA\OraPulse" -Recurse -Force
   English-only; the installed app itself remains fully bilingual as
   always. It also has no formal end-user license agreement -- the license
   step just links back to this README.
+- The App Password (see above) protects the app from someone else using a
+  browser on the same PC; it does not encrypt Favorites/report/tuning data
+  itself and is not a substitute for Windows login or disk encryption --
+  someone with direct filesystem access to this machine can still read
+  those stores with their own existing key files, exactly as before this
+  feature existed.

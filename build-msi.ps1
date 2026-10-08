@@ -1,16 +1,22 @@
 # Builds setup\<MSI_VERSION>\OraPulse_ODM_Setup_ver_<MSI_VERSION>.msi -- a
 # proper per-machine Windows Installer package (WiX Toolset v3), installing
-# to C:\Program Files\OraPulse(ODM) with a Start Menu shortcut, an optional
-# Desktop shortcut, correct Add/Remove Programs metadata, silent-install
-# support, and major-upgrade/downgrade-block versioning.
+# to C:\Program Files (x86)\OraPulse_ODM_x86 with a Start Menu shortcut, an
+# optional Desktop shortcut, correct Add/Remove Programs metadata,
+# silent-install support, major-upgrade/downgrade-block versioning, and
+# automatic cleanup of any previously-set App Password on uninstall (see
+# wix\Product.wxs's CMP_AppLockCleanup for exactly what that does and does
+# not remove).
 #
 # This is a *second*, independent installer format alongside the existing
 # Inno Setup one (installer.iss / build-installer.ps1) -- that one is
 # untouched and still works exactly as before. Use whichever fits: Inno's
 # EXE installs to Program Files (x86) with no MSI semantics; this MSI
-# installs to Program Files (64-bit) with real Windows Installer upgrade/
-# downgrade/uninstall tracking, which is what a corporate software
-# deployment tool (SCCM, Intune, etc.) typically expects.
+# installs with real Windows Installer upgrade/downgrade/uninstall
+# tracking, which is what a corporate software deployment tool (SCCM,
+# Intune, etc.) typically expects. Despite shipping genuine 64-bit
+# binaries, this MSI's own install location is Program Files (x86), not
+# Program Files -- see wix\Product.wxs's Directory tree comment for why
+# that split is intentional here.
 #
 # Prerequisite: WiX Toolset v3.14 (candle.exe/light.exe/heat.exe). Not
 # detected? Install it with:
@@ -31,8 +37,14 @@
 # form is what appears in the output filename and in ARPCOMMENTS ("more
 # info" in Programs and Features); the 3-part form is the real
 # ProductVersion Windows Installer itself uses for upgrade/downgrade
-# comparisons. To release a new MSI version, edit MSI_VERSION by hand
-# (same convention as the VERSION file) before running this script again.
+# comparisons. MSI_VERSION's last (4th) field is auto-incremented by 1 at
+# the very end of this script, but only once every verification check
+# above has already passed (same "never burn a number on a failed build"
+# rule VERSION's own auto-increment in build-folder.ps1 follows) -- so
+# re-running this script with no other changes always produces the next
+# release number with no manual edit needed. Bump a different field by
+# hand (e.g. the first/second for an actual version-scheme change) only
+# when that's genuinely intended.
 #
 # --- Pipeline ---
 #   1. Locate WiX v3 (candle/light/heat) -- fail with clear install
@@ -120,10 +132,6 @@ Write-Host "Found WiX at: $wixBin"
 # --- 2. Versions ---
 Write-Step "Reading versions"
 
-if (-not (Test-Path ".\VERSION")) { throw "VERSION file not found at repo root." }
-$appVersion = (Get-Content ".\VERSION" -Raw).Trim()
-Write-Host "Underlying app build (VERSION): $appVersion"
-
 if (-not (Test-Path ".\MSI_VERSION")) { throw "MSI_VERSION file not found at repo root (expected e.g. 1.0.0.1)." }
 $displayVersion = (Get-Content ".\MSI_VERSION" -Raw).Trim()
 if ($displayVersion -notmatch '^\d+\.\d+\.\d+\.\d+$') {
@@ -137,12 +145,25 @@ $manufacturer = "OraPulse"
 $msiName = "OraPulse_ODM_Setup_ver_$displayVersion.msi"
 
 # --- 3. Fresh folder build ---
+#
+# The app's own VERSION (1.NNNN) is deliberately read AFTER build-folder.ps1
+# runs below, never before: that script bumps VERSION itself as a side
+# effect of every successful build (see its own comment), so reading it
+# first and reusing that value afterward would silently stage whatever
+# *previous* build's leftover dist\OraPulse_ver_<old>\ happened to still be
+# sitting there, rather than the one just built -- a real bug this
+# comment exists to keep from quietly coming back.
 if ($SkipFolderBuild) {
+    if (-not (Test-Path ".\VERSION")) { throw "VERSION file not found at repo root." }
+    $appVersion = (Get-Content ".\VERSION" -Raw).Trim()
     Write-Step "Skipping build-folder.ps1 (-SkipFolderBuild) -- reusing existing dist\OraPulse_ver_$appVersion"
 } else {
     Write-Step "Building fresh portable folder distribution (build-folder.ps1)"
     .\build-folder.ps1
+    if (-not (Test-Path ".\VERSION")) { throw "VERSION file not found at repo root." }
+    $appVersion = (Get-Content ".\VERSION" -Raw).Trim()
 }
+Write-Host "Underlying app build (VERSION): $appVersion"
 $payloadSourceDir = ".\dist\OraPulse_ver_$appVersion"
 if (-not (Test-Path $payloadSourceDir)) {
     throw "Expected folder build not found at $payloadSourceDir -- check VERSION or run build-folder.ps1 first."
@@ -271,7 +292,18 @@ Write-Step "Linking with light.exe"
 
 $msiPath = "$setupRoot\$msiName"
 Remove-Item $msiPath -Force -ErrorAction SilentlyContinue
-& $light -ext WixUIExtension -ext WixUtilExtension -sice:ICE61 `
+# -sice:ICE61: allows reinstalling the exact same ProductVersion (useful
+#   while iterating on this script itself without bumping MSI_VERSION).
+# -sice:ICE80: fires on every single component in this MSI (the main exe,
+#   every DLL, and every heat.exe-harvested file under lib\/public\)
+#   because this product's own install-path requirement --
+#   C:\Program Files (x86)\OraPulse_ODM_x86 -- deliberately puts genuine
+#   64-bit components under the 32-bit Program Files (x86) directory. This
+#   is purely a packaging-convention check: nothing about where an exe is
+#   stored affects whether it runs as a real 64-bit process, and nothing
+#   in this payload relies on WOW64 path redirection, so there is no
+#   actual functional issue to fix here.
+& $light -ext WixUIExtension -ext WixUtilExtension -sice:ICE61 -sice:ICE80 `
     -out $msiPath `
     "$obj\Product.wixobj" "$obj\LibFragment.wixobj" "$obj\PublicFragment.wixobj"
 if ($LASTEXITCODE -ne 0) { throw "light.exe failed (exit $LASTEXITCODE)." }
@@ -391,3 +423,15 @@ Write-Host "  msiexec /x `"$msiFull`" /qn      (silent uninstall)"
 if (-not $allPass) {
     throw "One or more verification checks failed -- see above."
 }
+
+# Auto-increment MSI_VERSION's last field by 1, now that the MSI has been
+# built and every verification check above has actually passed -- see the
+# "--- Versioning ---" comment at the top of this file for why this is
+# placed last (never burn a release number on a failed build) rather than
+# up front alongside the MSI_VERSION read.
+Write-Step "Bumping MSI_VERSION for the next build"
+$msiVersionParts = $displayVersion.Split('.')
+$nextMsiVersion = "{0}.{1}.{2}.{3}" -f `
+    [int]$msiVersionParts[0], [int]$msiVersionParts[1], [int]$msiVersionParts[2], ([int]$msiVersionParts[3] + 1)
+[System.IO.File]::WriteAllText("$PSScriptRoot\MSI_VERSION", "$nextMsiVersion`r`n")
+Write-Host "MSI_VERSION: $displayVersion -> $nextMsiVersion (used by the next build-msi.ps1 run)"

@@ -23,7 +23,15 @@ if (-not (Test-Path ".\venv\Scripts\python.exe")) {
 
 .\venv\Scripts\python.exe -m PyInstaller OraPulse.spec --noconfirm
 
-$version = (Get-Content ".\VERSION" -Raw).Trim()
+# Auto-increment VERSION (1.NNNN) by 1 on every successful build, so each
+# build gets its own number without needing to edit VERSION by hand. Done
+# here (after PyInstaller succeeds, not before) so a failed build never
+# burns a version number.
+$versionParts = (Get-Content ".\VERSION" -Raw).Trim() -split '\.'
+$version = "{0}.{1:D4}" -f [int]$versionParts[0], ([int]$versionParts[1] + 1)
+[System.IO.File]::WriteAllText("$PSScriptRoot\VERSION", "$version`r`n")
+Write-Host "Version bumped to $version"
+
 $finalExe = ".\dist\OraPulse_ver_$version.exe"
 Move-Item ".\dist\OraPulse.exe" $finalExe -Force
 

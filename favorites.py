@@ -13,10 +13,14 @@ migration needed. (cryptography's AESGCM.encrypt() returns
 ciphertext+tag appended, the opposite order from Node's iv+tag+ciphertext
 layout -- _encrypt/_decrypt below explicitly re-order bytes to match.)
 
-There's no login gate on the /api/favorites* routes in main.py (same as
-everywhere else in this app -- see the top-of-file comment in main.py):
-this whole feature only exists to be usable from the connect screen, before
-any DB connection/session exists yet.
+There's no *DB-session* login gate on the /api/favorites* routes (same as
+everywhere else in this app that doesn't need one -- see main.py's
+top-of-file comment): this whole feature only exists to be usable from the
+connect screen, before any DB connection/session exists yet. It is still
+covered by the separate, outer app-password gate (app_lock.py,
+backend/routes_app_lock.py) that sits in front of this entire server --
+that gate is what actually keeps a saved favorite's encrypted password
+from being reachable by anyone who hasn't unlocked the app first.
 """
 
 import base64

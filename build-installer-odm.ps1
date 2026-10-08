@@ -68,10 +68,6 @@ Write-Host "Found ISCC at: $iscc"
 # --- 2. Versions ---
 Write-Step "Reading versions"
 
-if (-not (Test-Path ".\VERSION")) { throw "VERSION file not found at repo root." }
-$appVersion = (Get-Content ".\VERSION" -Raw).Trim()
-Write-Host "Underlying app build (VERSION): $appVersion"
-
 if (-not (Test-Path ".\MSI_VERSION")) { throw "MSI_VERSION file not found at repo root (expected e.g. 1.0.0.2)." }
 $displayVersion = (Get-Content ".\MSI_VERSION" -Raw).Trim()
 if ($displayVersion -notmatch '^\d+\.\d+\.\d+\.\d+$') {
@@ -82,12 +78,24 @@ Write-Host "Installer release version (MSI_VERSION): $displayVersion"
 $exeName = "OraPulse_ODM_Setup_ver_$displayVersion.exe"
 
 # --- 3. Fresh folder build ---
+#
+# The app's own VERSION (1.NNNN) is deliberately read AFTER build-folder.ps1
+# runs below, never before: that script bumps VERSION itself as a side
+# effect of every successful build (see its own comment), so reading it
+# first and reusing that value afterward would silently package whatever
+# *previous* build's leftover dist\OraPulse_ver_<old>\ happened to still be
+# sitting there, rather than the one just built.
 if ($SkipFolderBuild) {
+    if (-not (Test-Path ".\VERSION")) { throw "VERSION file not found at repo root." }
+    $appVersion = (Get-Content ".\VERSION" -Raw).Trim()
     Write-Step "Skipping build-folder.ps1 (-SkipFolderBuild) -- reusing existing dist\OraPulse_ver_$appVersion"
 } else {
     Write-Step "Building fresh portable folder distribution (build-folder.ps1)"
     .\build-folder.ps1
+    if (-not (Test-Path ".\VERSION")) { throw "VERSION file not found at repo root." }
+    $appVersion = (Get-Content ".\VERSION" -Raw).Trim()
 }
+Write-Host "Underlying app build (VERSION): $appVersion"
 $sourceDir = ".\dist\OraPulse_ver_$appVersion"
 if (-not (Test-Path $sourceDir)) {
     throw "Expected folder build not found at $sourceDir -- check VERSION or run build-folder.ps1 first."

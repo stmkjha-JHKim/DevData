@@ -36,6 +36,15 @@ finally block -- including deleting whatever *new* key file favorites.py
 generates in their absence first, since leaving that behind would
 silently break decryption of the restored (differently-keyed) real
 favorites.enc.
+
+Every /api/favorites* route now also sits behind the app-password gate
+(app_lock.py / backend/routes_app_lock.py), same as the rest of the app --
+see tests/test_app_lock.py for that gate's own tests. This file isolates
+data\\app-lock.json the same way it already isolates the favorites store,
+then completes a one-time setup against a throwaway test password and
+carries the resulting unlock cookie on every request below, so this
+remains a test of Favorites specifically rather than re-proving the gate
+works (that's test_app_lock.py's job).
 """
 
 import json
@@ -51,14 +60,22 @@ ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = ROOT / "data"
 FAVORITES_FILE = DATA_DIR / "favorites.enc"
 KEY_FILE = DATA_DIR / ".favorites-key"
+APP_LOCK_FILE = DATA_DIR / "app-lock.json"
 PORT = 59530
 BASE = f"http://127.0.0.1:{PORT}"
 
 # Distinctive enough that it can never appear by coincidence in any
 # unrelated response text, error message, or log line.
 PLAINTEXT_PASSWORD = "S3cr3t_Test_Password_Marker_9f8e"
+APP_PASSWORD = "Test_App_Password_Marker_7a1c"
 
 failures = []
+
+# Populated by _unlock() below once /api/app-lock/setup has run, and sent
+# as a Cookie header on every subsequent request() call -- without it,
+# every /api/favorites* call would get the gate's own 401 instead of
+# reaching favorites.py at all. See app_lock.UNLOCK_COOKIE_NAME.
+_unlock_cookie = None
 
 
 def check(condition, description):
@@ -70,12 +87,10 @@ def check(condition, description):
 
 def request(method, path, body=None, timeout=10):
     data = json.dumps(body).encode("utf-8") if body is not None else None
-    req = urllib.request.Request(
-        f"{BASE}{path}",
-        data=data,
-        method=method,
-        headers={"Content-Type": "application/json"} if data else {},
-    )
+    headers = {"Content-Type": "application/json"} if data else {}
+    if _unlock_cookie:
+        headers["Cookie"] = _unlock_cookie
+    req = urllib.request.Request(f"{BASE}{path}", data=data, method=method, headers=headers)
     try:
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             raw = resp.read()
@@ -83,6 +98,31 @@ def request(method, path, body=None, timeout=10):
     except urllib.error.HTTPError as err:
         raw = err.read()
         return err.code, raw, json.loads(raw)
+
+
+def _unlock():
+    """One-time app-password setup against a throwaway test password,
+    capturing the unlock cookie it hands back (see app_lock_setup() in
+    backend/routes_app_lock.py) so every request() call above can carry
+    it. Must run before anything in main() touches /api/favorites*."""
+    global _unlock_cookie
+    req = urllib.request.Request(
+        f"{BASE}/api/app-lock/setup",
+        data=json.dumps({"password": APP_PASSWORD, "confirmPassword": APP_PASSWORD}).encode("utf-8"),
+        method="POST",
+        headers={"Content-Type": "application/json"},
+    )
+    with urllib.request.urlopen(req, timeout=10) as resp:
+        data = json.loads(resp.read())
+        if not data.get("success"):
+            raise RuntimeError(f"Could not complete app-lock setup for this test run: {data}")
+        set_cookie = resp.headers.get("Set-Cookie") or ""
+    # Only the name=value pair is needed on the way back out -- strip the
+    # attributes (Path=/, HttpOnly, SameSite=lax, Max-Age=...) a real
+    # browser would handle itself.
+    _unlock_cookie = set_cookie.split(";", 1)[0]
+    if not _unlock_cookie:
+        raise RuntimeError("app-lock setup did not return an unlock cookie.")
 
 
 def wait_until_ready():
@@ -100,10 +140,13 @@ def wait_until_ready():
 def main():
     fav_backup = FAVORITES_FILE.read_bytes() if FAVORITES_FILE.exists() else None
     key_backup = KEY_FILE.read_bytes() if KEY_FILE.exists() else None
+    app_lock_backup = APP_LOCK_FILE.read_bytes() if APP_LOCK_FILE.exists() else None
     if FAVORITES_FILE.exists():
         FAVORITES_FILE.unlink()
     if KEY_FILE.exists():
         KEY_FILE.unlink()
+    if APP_LOCK_FILE.exists():
+        APP_LOCK_FILE.unlink()
 
     proc = None
     try:
@@ -118,6 +161,7 @@ def main():
             text=True,
         )
         wait_until_ready()
+        _unlock()
 
         print("1) GET /api/favorites starts empty")
         status, raw, data = request("GET", "/api/favorites")
@@ -236,22 +280,31 @@ def main():
                 server_output, _ = proc.communicate()
         if server_output:
             check(
-                PLAINTEXT_PASSWORD not in server_output and "a_different_password" not in server_output,
+                PLAINTEXT_PASSWORD not in server_output
+                and "a_different_password" not in server_output
+                and APP_PASSWORD not in server_output,
                 "no password marker anywhere in the server's own stdout/stderr log",
             )
 
         # Clean up whatever this run wrote, then restore the developer's
         # real store exactly as it was -- a freshly generated key must
         # never be left in place ahead of restoring the (differently
-        # keyed) real favorites.enc, or it silently fails to decrypt.
+        # keyed) real favorites.enc, or it silently fails to decrypt. Same
+        # reasoning for app-lock.json: this test's own throwaway app
+        # password must never be left as the real one a developer would
+        # then be stuck typing.
         if FAVORITES_FILE.exists():
             FAVORITES_FILE.unlink()
         if KEY_FILE.exists():
             KEY_FILE.unlink()
+        if APP_LOCK_FILE.exists():
+            APP_LOCK_FILE.unlink()
         if fav_backup is not None:
             FAVORITES_FILE.write_bytes(fav_backup)
         if key_backup is not None:
             KEY_FILE.write_bytes(key_backup)
+        if app_lock_backup is not None:
+            APP_LOCK_FILE.write_bytes(app_lock_backup)
 
     print()
     if failures:
